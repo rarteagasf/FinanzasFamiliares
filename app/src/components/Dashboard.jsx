@@ -1,0 +1,179 @@
+import { useStore } from '../store/useStore';
+import { CreditCard, ArrowDownCircle } from 'lucide-react';
+
+export default function Dashboard() {
+  const { balances, expenses, cards, entities } = useStore();
+
+  const totalSaldos = (balances.caixabank || 0) + (balances.hucha || 0) + (balances.ing_nomina || 0) + (balances.ing_naranja || 0);
+  
+  // Calcular gastos pendientes totales
+  const totalPendienteCaixa = expenses
+    .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
+    .reduce((acc, curr) => acc + curr.importe, 0);
+    
+  const totalPendienteING = expenses
+    .filter(e => e.estado === 'X' && e.entidad === 'ING')
+    .reduce((acc, curr) => acc + curr.importe, 0);
+
+  const totalGastosPendientes = totalPendienteCaixa + totalPendienteING;
+  
+  // Disponible
+  const dispCaixa = balances.caixabank - totalPendienteCaixa;
+  const dispING = balances.ing_nomina - totalPendienteING;
+  const totalDisponible = dispCaixa + dispING + balances.ing_naranja + balances.hucha;
+
+  // Gastos Pendientes para desglose
+  const pendingExpenses = expenses.filter(e => e.estado === 'X').sort((a,b) => a.dia - b.dia);
+  const groupedPendientes = {};
+  
+  // Initialize with known entities to maintain order
+  entities.forEach(ent => { groupedPendientes[ent.name] = []; });
+  
+  pendingExpenses.forEach(exp => {
+    if (!groupedPendientes[exp.entidad]) groupedPendientes[exp.entidad] = [];
+    groupedPendientes[exp.entidad].push(exp);
+  });
+
+  const activeGroups = Object.entries(groupedPendientes).filter(([_, list]) => list.length > 0);
+
+  return (
+    <div className="dashboard">
+      <div className="grid-3" style={{ marginBottom: '2rem' }}>
+        <div className="card">
+          <h2 className="card-title">Saldos Totales</h2>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Actual</div>
+          <div style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '1.5rem' }}>
+            {totalSaldos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>CaixaBank</span>
+              <span>{balances.caixabank.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>ING Nómina</span>
+              <span>{balances.ing_nomina.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>ING Naranja</span>
+              <span>{balances.ing_naranja.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Hucha</span>
+              <span>{balances.hucha.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="card-title"><ArrowDownCircle size={24} color="var(--danger)" /> Gastos Pendientes</h2>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Pendiente</div>
+          <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--danger)', marginBottom: '1.5rem' }}>
+            {totalGastosPendientes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--info)' }}>CaixaBank Pendiente</span>
+              <span>{totalPendienteCaixa.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--warning)' }}>ING Pendiente</span>
+              <span>{totalPendienteING.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="card-title">Saldo Disponible</h2>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Libre de cargas</div>
+          <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--success)', marginBottom: '1.5rem' }}>
+            {totalDisponible.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Disponible Caixa</span>
+              <span>{dispCaixa.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Disponible ING</span>
+              <span>{dispING.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '2rem' }}>
+        <h2 className="card-title"><CreditCard size={24} /> Próximos Recibos Tarjetas</h2>
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarjeta</th>
+                <th>Próx. Recibo</th>
+                <th>Pendiente</th>
+                <th>Disponible</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cards.map(card => (
+                <tr key={card.id}>
+                  <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
+                  <td>{card.cuota.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                  <td style={{ color: 'var(--danger)' }}>{Math.abs(card.pendiente).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                  <td style={{ color: 'var(--success)' }}>{card.disponible.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2 className="card-title"><ArrowDownCircle size={24} color="var(--danger)" /> Desglose Pendientes</h2>
+        
+        {activeGroups.length === 0 ? (
+          <div style={{ color: 'var(--text-muted)', padding: '1rem 0' }}>No hay gastos pendientes.</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(300px, 1fr))`, gap: '2rem' }}>
+            {activeGroups.map(([entidadName, lista]) => {
+              const entidadColor = entities.find(e => e.name === entidadName)?.color || 'var(--text-main)';
+              const totalEntidad = lista.reduce((sum, item) => sum + item.importe, 0);
+
+              return (
+                <div key={entidadName} style={{ background: 'var(--bg-main)', borderRadius: '8px', padding: '1rem', border: `1px solid ${entidadColor}30` }}>
+                  <h3 style={{ margin: '0 0 1rem 0', color: entidadColor, fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between' }}>
+                    {entidadName}
+                    <span>{totalEntidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                  </h3>
+                  <div className="table-container" style={{ margin: 0 }}>
+                    <table style={{ fontSize: '0.875rem' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px', padding: '0.5rem' }}>Día</th>
+                          <th style={{ padding: '0.5rem' }}>Concepto</th>
+                          <th style={{ textAlign: 'right', padding: '0.5rem' }}>Importe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lista.map(expense => (
+                          <tr key={expense.id}>
+                            <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{expense.dia}</td>
+                            <td style={{ padding: '0.5rem' }}>{expense.concepto}</td>
+                            <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>
+                              {expense.importe.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+    </div>
+  );
+}

@@ -1,0 +1,18 @@
+Llevo mis finanzas familiares mediante una hoja de cálculo dividida en tres páginas.
+
+1. Gastos Mensuales.-
+- Incluye todos los gastos previstos mes a mes, aunque alguno de ellos tienen una periodicidad superior.
+- Los importes de dichos gastos son fijos o variables, por lo que tomo en cuenta el valor del último cargo real anotado.
+- Actualmente trabajo con dos entidades: CaixaBank e ING.
+- La columna "Estado" admite tres valores (P) Pagado, (X) Pendiente y (-) para los gastos que no corresponden al mes en curso.
+- El botón "Ordenar" lo uso para que los gastos se presenten según el "Día" de pago.
+- El botón "Resetear Estado" sirve para cambiar el estado a "X" para todos los gastos que correspondan al mes actual y a "-" los que no. El reseteo puede realizarse de forma independiente por "Entidad" o para ambas entidades.
+- No uso un apartado de ingresos, estos los indico manualmente en la sección "Disponible".
+- Estos ingresos varían regularmente el día 25 de cada mes en "ING" por mi pensión y en los dos últimos días del mes en "CaixaBank" por la nómina de mi mujer. De ahí que el reseteo lo haga habitualmente de forma individual.
+- La particularidad anterior hace que, en los últimos días del mes, haya gastos que aún no se han pagado en el mes actual y haya que contabilizar también el del próximo mes.
+
+2. Resumen.-
+- Es una instantánea de mi situación financiera en el momento de consultarla.
+
+3. Planificación.-
+- Una vista de la situación general de préstamos y tarjetas.

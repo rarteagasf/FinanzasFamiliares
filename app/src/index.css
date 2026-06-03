@@ -1,0 +1,111 @@
+/* ============================================================
+   LIGHT MODE (default)
+   ============================================================ */
+:root {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-container: #dbeafe;
+  --on-primary-container: #1e3a5f;
+
+  --secondary: #14b8a6;
+  --secondary-container: #ccfbf1;
+
+  --tertiary: #8b5cf6;
+  --tertiary-container: #ede9fe;
+
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #0ea5e9;
+
+  --border: #e2e8f0;
+  --outline: #cbd5e1;
+
+  --caixabank: #0ea5e9;
+  --ing: #f97316;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+
+  --overlay: rgba(15, 23, 42, 0.5);
+  --table-total-bg: rgba(241, 245, 249, 0.9);
+
+  /* State badge backgrounds */
+  --badge-p-bg: rgba(16, 185, 129, 0.2);
+  --badge-x-bg: rgba(239, 68, 68, 0.2);
+  --badge-none-bg: rgba(148, 163, 184, 0.2);
+
+  /* Danger button */
+  --btn-danger-bg: rgba(239, 68, 68, 0.1);
+  --btn-danger-border: rgba(239, 68, 68, 0.2);
+  --btn-danger-hover-bg: rgba(239, 68, 68, 0.2);
+}
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+.dark-theme {
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #334155;
+
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+  --primary-container: #1e3a5f;
+  --on-primary-container: #dbeafe;
+
+  --secondary: #2dd4bf;
+  --secondary-container: #134e4a;
+
+  --tertiary: #a78bfa;
+  --tertiary-container: #3b0764;
+
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --info: #38bdf8;
+
+  --border: #334155;
+  --outline: #475569;
+
+  --caixabank: #38bdf8;
+  --ing: #fb923c;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -2px rgba(0,0,0,0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.4), 0 10px 10px -5px rgba(0,0,0,0.2);
+
+  --overlay: rgba(15, 23, 42, 0.8);
+  --table-total-bg: rgba(30, 41, 59, 0.9);
+
+  --badge-p-bg: rgba(16, 185, 129, 0.15);
+  --badge-x-bg: rgba(239, 68, 68, 0.15);
+  --badge-none-bg: rgba(148, 163, 184, 0.15);
+
+  --btn-danger-bg: rgba(248, 113, 113, 0.1);
+  --btn-danger-border: rgba(248, 113, 113, 0.2);
+  --btn-danger-hover-bg: rgba(248, 113, 113, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
