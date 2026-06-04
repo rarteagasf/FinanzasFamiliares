@@ -12,15 +12,28 @@ export function parseIntNum(value) {
   return isNaN(num) ? 0 : num;
 }
 
+export function normalizeDecimalInput(value) {
+  let str = String(value);
+  if (str.includes('.') && str.includes(',')) {
+    str = str.replace(/\./g, '');
+  } else {
+    str = str.replace(/\./g, ',');
+  }
+  const cleaned = str.match(/^-?[0-9,]*/)?.[0] || '';
+  const idx = cleaned.indexOf(',');
+  if (idx !== -1) {
+    return cleaned.substring(0, idx + 1) + cleaned.substring(idx + 1).replace(/,/g, '');
+  }
+  return cleaned;
+}
+
 export function onNumKeyDown(e) {
   if ((e.key === 'Delete' && e.location === 3) || e.key === '.') {
     e.preventDefault();
     const input = e.target;
-    if (input.value.includes('.') || input.value.includes(',')) return;
-    const nativeSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype, 'value'
-    ).set;
-    nativeSetter.call(input, input.value + ',');
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    input.setRangeText(',', start, end, 'end');
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }

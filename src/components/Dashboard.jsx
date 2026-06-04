@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { CreditCard, ArrowDownCircle, Pencil } from 'lucide-react';
-import { parseNum, onNumKeyDown } from '../utils';
+import { parseNum, normalizeDecimalInput, onNumKeyDown } from '../utils';
 
 export default function Dashboard() {
   const { balances, expenses, cards, entities, updateBalance } = useStore();
@@ -60,13 +60,13 @@ export default function Dashboard() {
                 <span style={{ color: 'var(--text-muted)' }}>{label}</span>
                 {editingAccount === key ? (
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     className="input"
                     style={{ width: '120px', padding: '0.15rem 0.5rem', textAlign: 'right' }}
                     value={editValue}
                     autoFocus
-                    onChange={e => setEditValue(e.target.value)}
+                    onChange={e => setEditValue(normalizeDecimalInput(e.target.value))}
                     onBlur={() => { updateBalance(key, parseNum(editValue)); setEditingAccount(null); }}
                     onKeyDown={e => { if (e.key === 'Enter') { updateBalance(key, parseNum(editValue)); setEditingAccount(null); } if (e.key === 'Escape') setEditingAccount(null); onNumKeyDown(e); }}
                   />

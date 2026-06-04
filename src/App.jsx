@@ -74,10 +74,10 @@ function App() {
           </h1>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-secondary" onClick={handleExport} title="Exportar datos">
-              <Download size={16} />
+              <Upload size={16} />
             </button>
             <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} title="Importar datos">
-              <Upload size={16} />
+              <Download size={16} />
             </button>
             <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
             <button

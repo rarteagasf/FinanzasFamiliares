@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, onNumKeyDown } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, onNumKeyDown } from '../utils';
 import { RefreshCw, ArrowUpDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
@@ -186,9 +186,9 @@ export default function ExpensesList() {
                   <tr key={expense.id} onDoubleClick={() => !isEditing && startInlineEditing(expense)}>
                     {isEditing ? (
                       <>
-                        <td><input type="number" className="input" style={{ width: '60px', padding: '0.25rem' }} value={inlineForm.dia} onChange={e => setInlineForm({...inlineForm, dia: parseIntNum(e.target.value)})} min="1" max="31" /></td>
-                        <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineForm.concepto} onChange={e => setInlineForm({...inlineForm, concepto: e.target.value})} /></td>
-                        <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineForm.importe} onChange={e => setInlineForm({...inlineForm, importe: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} /></td>
+                        <td><input type="number" className="input" style={{ width: '60px', padding: '0.25rem' }} value={inlineForm.dia} onChange={e => setInlineForm({...inlineForm, dia: parseIntNum(e.target.value)})} min="1" max="31" onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
+                        <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineForm.concepto} onChange={e => setInlineForm({...inlineForm, concepto: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
+                        <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={String(inlineForm.importe).replace('.', ',')} onChange={e => setInlineForm({...inlineForm, importe: parseNum(normalizeDecimalInput(e.target.value))})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); onNumKeyDown(e); }} /></td>
                         <td>
                           <select className="input" style={{ padding: '0.25rem' }} value={inlineForm.entidad} onChange={e => setInlineForm({...inlineForm, entidad: e.target.value})}>
                             {entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}
@@ -276,7 +276,7 @@ export default function ExpensesList() {
         <form onSubmit={saveExpense}>
           <div className="form-group"><label>Día</label><input type="number" className="input" value={formData.dia} onChange={e => setFormData({...formData, dia: parseInt(e.target.value)})} required min="1" max="31" /></div>
           <div className="form-group"><label>Concepto</label><input type="text" className="input" value={formData.concepto} onChange={e => setFormData({...formData, concepto: e.target.value})} required /></div>
-          <div className="form-group"><label>Importe (€)</label><input type="number" step="0.01" className="input" value={formData.importe} onChange={e => setFormData({...formData, importe: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} required /></div>
+          <div className="form-group"><label>Importe (€)</label><input type="text" inputMode="decimal" className="input" value={String(formData.importe).replace('.', ',')} onChange={e => setFormData({...formData, importe: parseNum(normalizeDecimalInput(e.target.value))})} onKeyDown={onNumKeyDown} required /></div>
           <div className="form-group"><label>Entidad</label><select className="input" value={formData.entidad} onChange={e => setFormData({...formData, entidad: e.target.value})} required>{entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}</select></div>
           <div className="form-group"><label>Estado Inicial</label><select className="input" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})}><option value="X">Pendiente</option><option value="P">Pagado</option><option value="-">No aplica</option></select></div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Guardar Gasto</button>
