@@ -37,7 +37,12 @@ export function formatShortDate(dateStr) {
 export function formatCurrency(value) {
   const num = Number(value);
   if (isNaN(num)) return '0,00 €';
-  return num.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  // Formateo manual para garantizar separador de miles (.) y decimal (,) en español
+  const fixed = Math.abs(num).toFixed(2);
+  const [intPart, decPart] = fixed.split('.');
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const sign = num < 0 ? '-' : '';
+  return `${sign}${intFormatted},${decPart} €`;
 }
 
 export function formatNumber(value, options = {}) {
