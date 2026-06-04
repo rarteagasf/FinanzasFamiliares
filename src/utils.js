@@ -34,6 +34,24 @@ export function formatShortDate(dateStr) {
   return `${day}/${month}/${year}`;
 }
 
+export function formatCurrency(value) {
+  const num = Number(value);
+  if (isNaN(num)) return '0,00 €';
+  return num.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+}
+
+export function formatNumber(value, options = {}) {
+  const num = Number(value);
+  if (isNaN(num)) return '0';
+  return num.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2, ...options });
+}
+
+export function formatInputDecimal(value) {
+  const num = Number(value);
+  if (isNaN(num)) return '';
+  return String(num).replace('.', ',');
+}
+
 export function onNumKeyDown(e) {
   if ((e.key === 'Delete' && e.location === 3) || e.key === '.') {
     e.preventDefault();

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { CreditCard, ArrowDownCircle, Pencil } from 'lucide-react';
-import { parseNum, normalizeDecimalInput, onNumKeyDown } from '../utils';
+import { parseNum, normalizeDecimalInput, formatCurrency, onNumKeyDown } from '../utils';
 
 export default function Dashboard() {
   const { balances, expenses, cards, entities, updateBalance } = useStore();
@@ -47,7 +47,7 @@ export default function Dashboard() {
           <h2 className="card-title">Saldos Totales</h2>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Actual</div>
           <div style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '1.5rem' }}>
-            {totalSaldos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            {formatCurrency(totalSaldos)}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {[
@@ -76,7 +76,7 @@ export default function Dashboard() {
                     onClick={() => { setEditingAccount(key); setEditValue(String(balances[key] || 0)); }}
                     title="Editar saldo"
                   >
-                    {(balances[key] || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    {formatCurrency(balances[key] || 0)}
                     <Pencil size={12} style={{ opacity: 0.4 }} />
                   </span>
                 )}
@@ -89,16 +89,16 @@ export default function Dashboard() {
           <h2 className="card-title"><ArrowDownCircle size={24} color="var(--danger)" /> Gastos Pendientes</h2>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Pendiente</div>
           <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--danger)', marginBottom: '1.5rem' }}>
-            {totalGastosPendientes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            {formatCurrency(totalGastosPendientes)}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--info)' }}>CaixaBank Pendiente</span>
-              <span>{totalPendienteCaixa.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+              <span>{formatCurrency(totalPendienteCaixa)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--warning)' }}>ING Pendiente</span>
-              <span>{totalPendienteING.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+              <span>{formatCurrency(totalPendienteING)}</span>
             </div>
           </div>
         </div>
@@ -107,16 +107,16 @@ export default function Dashboard() {
           <h2 className="card-title">Saldo Disponible</h2>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Libre de cargas</div>
           <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--success)', marginBottom: '1.5rem' }}>
-            {totalDisponible.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            {formatCurrency(totalDisponible)}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Disponible Caixa</span>
-              <span>{dispCaixa.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+              <span>{formatCurrency(dispCaixa)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Disponible ING</span>
-              <span>{dispING.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+              <span>{formatCurrency(dispING)}</span>
             </div>
           </div>
         </div>
@@ -138,9 +138,9 @@ export default function Dashboard() {
               {cards.map(card => (
                 <tr key={card.id}>
                   <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
-                  <td>{card.cuota.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  <td style={{ color: 'var(--danger)' }}>{Math.abs(card.pendiente).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  <td style={{ color: 'var(--success)' }}>{card.disponible.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                  <td>{formatCurrency(card.cuota)}</td>
+                  <td style={{ color: 'var(--danger)' }}>{formatCurrency(Math.abs(card.pendiente))}</td>
+                  <td style={{ color: 'var(--success)' }}>{formatCurrency(card.disponible)}</td>
                 </tr>
               ))}
             </tbody>
@@ -163,7 +163,7 @@ export default function Dashboard() {
                 <div key={entidadName} style={{ background: 'var(--bg-main)', borderRadius: '8px', padding: '1rem', border: `1px solid ${entidadColor}30` }}>
                   <h3 style={{ margin: '0 0 1rem 0', color: entidadColor, fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between' }}>
                     {entidadName}
-                    <span>{totalEntidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                    <span>{formatCurrency(totalEntidad)}</span>
                   </h3>
                   <div className="table-container" style={{ margin: 0 }}>
                     <table style={{ fontSize: '0.875rem' }}>
@@ -180,7 +180,7 @@ export default function Dashboard() {
                             <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{expense.dia}</td>
                             <td style={{ padding: '0.5rem' }}>{expense.concepto}</td>
                             <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>
-                              {expense.importe.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                              {formatCurrency(expense.importe)}
                             </td>
                           </tr>
                         ))}
