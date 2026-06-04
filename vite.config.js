@@ -9,7 +9,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg', 'pwa-icon.svg'],
       manifest: {
-        name: 'Antigravity Finanzas',
+        name: 'Finanzas Personales',
         short_name: 'Finanzas',
         description: 'Control de gastos familiares',
         theme_color: '#0f172a',

@@ -208,4 +208,37 @@ export const useStore = create((set, get) => ({
     set({ balances: newBalances });
     await supabase.from('balances').update({ [account]: value }).eq('month_id', selectedMonthId);
   },
+
+  exportAllData: async () => {
+    const { data: months } = await supabase.from('months').select('*');
+    const { data: entities } = await supabase.from('entities').select('*');
+    const { data: expenses } = await supabase.from('expenses').select('*');
+    const { data: balances } = await supabase.from('balances').select('*');
+    const { data: loans } = await supabase.from('loans').select('*');
+    const { data: cards } = await supabase.from('cards').select('*');
+    return { months, entities, expenses, balances, loans, cards };
+  },
+
+  importAllData: async (data) => {
+    const { months, entities, expenses, balances, loans, cards } = data;
+
+    // Delete in FK-safe order
+    await supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('balances').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('cards').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('loans').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('months').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('entities').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+    // Insert in FK-safe order
+    if (entities?.length) await supabase.from('entities').insert(entities);
+    if (months?.length) await supabase.from('months').insert(months);
+    if (loans?.length) await supabase.from('loans').insert(loans);
+    if (cards?.length) await supabase.from('cards').insert(cards);
+    if (balances?.length) await supabase.from('balances').insert(balances);
+    if (expenses?.length) await supabase.from('expenses').insert(expenses);
+
+    // Reload all data
+    await get().fetchInitialData();
+  },
 }));

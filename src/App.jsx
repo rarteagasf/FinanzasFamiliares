@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Dashboard from './components/Dashboard';
 import ExpensesList from './components/ExpensesList';
 import PlanningView from './components/PlanningView';
-import { Wallet, PieChart, CalendarDays, History, Sun, Moon } from 'lucide-react';
+import { Wallet, PieChart, CalendarDays, History, Sun, Moon, Download, Upload } from 'lucide-react';
 import { useStore } from './store/useStore';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { globalStyles } from './stitches/globalStyles';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { months, selectedMonthId, fetchInitialData, fetchMonthData, loading, theme, toggleTheme } = useStore();
+  const { months, selectedMonthId, fetchInitialData, fetchMonthData, loading, theme, toggleTheme, exportAllData, importAllData } = useStore();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     globalStyles();
@@ -28,6 +29,31 @@ function App() {
     fetchMonthData(e.target.value);
   };
 
+  const handleExport = async () => {
+    const data = await exportAllData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'finanzas-personales.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await importAllData(data);
+      toast.success('Datos importados correctamente');
+    } catch (err) {
+      toast.error('Error al importar: ' + err.message);
+    }
+    e.target.value = '';
+  };
+
   if (loading && months.length === 0) {
     return (
       <div className="app-container">
@@ -44,15 +70,24 @@ function App() {
       <header className="app-header">
         <div className="header-top">
           <h1 className="app-title">
-            Antigravity Finanzas
+            Finanzas Personales
           </h1>
-          <button
-            className="btn btn-secondary theme-toggle"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-secondary" onClick={handleExport} title="Exportar datos">
+              <Download size={16} />
+            </button>
+            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} title="Importar datos">
+              <Upload size={16} />
+            </button>
+            <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+            <button
+              className="btn btn-secondary theme-toggle"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
         </div>
         <div className="header-bottom">
           <div className="month-selector">
