@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, normalizeDecimalInput, onNumKeyDown } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatShortDate, onNumKeyDown } from '../utils';
 import { Landmark, CreditCard, Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
@@ -176,12 +176,12 @@ export default function PlanningView() {
                         <td className="fw-600">{loan.entidad}</td>
                         <td>{loan.capital_inicial.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
                         <td className="hide-tablet">{(loan.total_a_pagar || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                        <td className="hide-tablet">{loan.fecha_inicial}</td>
-                        <td className="hide-tablet">{loan.fecha_final}</td>
-                        <td>{loan.cuotas}</td>
-                        <td className="hide-tablet">{loan.interes}%</td>
+                        <td className="hide-tablet">{formatShortDate(loan.fecha_inicial)}</td>
+                        <td className="hide-tablet">{formatShortDate(loan.fecha_final)}</td>
+                        <td>{loan.cuotas.toLocaleString('es-ES')}</td>
+                        <td className="hide-tablet">{(loan.interes || 0).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</td>
                         <td>{loan.cuota.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                        <td>{loan.faltan}</td>
+                        <td>{loan.faltan.toLocaleString('es-ES')}</td>
                         <td className="fw-600">{loan.pendiente.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
                         <td className="td-actions">
                           <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>

@@ -27,6 +27,13 @@ export function normalizeDecimalInput(value) {
   return cleaned;
 }
 
+export function formatShortDate(dateStr) {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  if (!year || !month || !day) return dateStr;
+  return `${day}/${month}/${year}`;
+}
+
 export function onNumKeyDown(e) {
   if ((e.key === 'Delete' && e.location === 3) || e.key === '.') {
     e.preventDefault();

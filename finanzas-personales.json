@@ -1,0 +1,423 @@
+{
+  "months": [
+    {
+      "id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "name": "Junio 2026",
+      "status": "open",
+      "created_at": "2026-06-03T17:47:24.239835+00:00"
+    }
+  ],
+  "entities": [
+    {
+      "id": "62f62687-ac9e-44f5-b286-51a40dbefab2",
+      "name": "CAIXABANK",
+      "color": "#0ea5e9"
+    },
+    {
+      "id": "44438461-b359-48e8-b0af-4370f68038ae",
+      "name": "ING",
+      "color": "#f97316"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "e52a037d-e831-417c-af83-679f8b665107",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Alquiler piso",
+      "importe": 518.52,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "3303761b-9ced-4a83-8f15-3d554f6889f8",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Visa Classic (Último)",
+      "importe": 64.03,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "4d265a8b-f079-4352-a91b-68b6d82fcbe3",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Préstamo Caixabank (último)",
+      "importe": 120.71,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "b59027a8-53ab-41e0-bc82-6cd54c54c826",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Paga Semanal Adri",
+      "importe": 160,
+      "entidad": "CAIXABANK",
+      "estado": "X"
+    },
+    {
+      "id": "cb29b808-742c-406b-b704-06ebb0dba088",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Gimnasio Adri",
+      "importe": 35,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "79c75ca3-e4fa-4c82-a679-86d296f18f87",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Seguro Coche Abril (Anual)",
+      "importe": 158.3,
+      "entidad": "CAIXABANK",
+      "estado": "-"
+    },
+    {
+      "id": "471cb411-9dee-4aa3-ad1c-666e8f0a8c8a",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Caixabank Paym (Último)",
+      "importe": 156.95,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "d632abcb-b95d-4e79-87a0-fa270f5d8808",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Préstamo Carrefour 2021",
+      "importe": 148.3,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "856abbe3-2156-49a0-8398-211c3201eb08",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Carrefour Crédito (Último)",
+      "importe": 106.85,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "fdcfbfa8-6acb-4cf7-b918-93255267f99d",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Comunidad",
+      "importe": 87.5,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "c702315d-06e5-4e9a-b17c-a1420ac01822",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 2,
+      "concepto": "La Alianza",
+      "importe": 50.6,
+      "entidad": "CAIXABANK",
+      "estado": "P"
+    },
+    {
+      "id": "a528a44f-765a-4ac9-9a5e-463e91885299",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 3,
+      "concepto": "Seguro Mayo (Anual)",
+      "importe": 153.3,
+      "entidad": "CAIXABANK",
+      "estado": "-"
+    },
+    {
+      "id": "4413b563-5e98-4e81-b437-265c7c5fd0df",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 5,
+      "concepto": "Revisión coche (Anual) Mayo",
+      "importe": 200.79,
+      "entidad": "CAIXABANK",
+      "estado": "-"
+    },
+    {
+      "id": "9cd24564-5ead-4c5f-bacb-5adce2be92d4",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 6,
+      "concepto": "Microondas ( Último)",
+      "importe": 19.23,
+      "entidad": "CAIXABANK",
+      "estado": "X"
+    },
+    {
+      "id": "42f5147c-4306-4552-94bd-787eef7f52c4",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 7,
+      "concepto": "Tren",
+      "importe": 20,
+      "entidad": "CAIXABANK",
+      "estado": "X"
+    },
+    {
+      "id": "4c98142e-ea1b-4364-89ce-ba366b9f1822",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 7,
+      "concepto": "O2",
+      "importe": 71,
+      "entidad": "CAIXABANK",
+      "estado": "X"
+    },
+    {
+      "id": "0a1ed2da-20b2-4afe-94e2-3dcbb82d0caf",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 9,
+      "concepto": "Microsoft 365",
+      "importe": 13,
+      "entidad": "CAIXABANK",
+      "estado": "X"
+    },
+    {
+      "id": "b3d6e4e3-2713-4033-9431-43197c6d3ae1",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 13,
+      "concepto": "Telefónica Móviles",
+      "importe": 34.4,
+      "entidad": "CAIXABANK",
+      "estado": "X"
+    },
+    {
+      "id": "84f54252-d200-4f6a-b2b6-7c5244b2ae4a",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 27,
+      "concepto": "Amazon Prime (Anual)",
+      "importe": 49.9,
+      "entidad": "CAIXABANK",
+      "estado": "-"
+    },
+    {
+      "id": "d1cd8508-5959-41b8-809d-14a248989876",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 30,
+      "concepto": "Retenido",
+      "importe": 2455.36,
+      "entidad": "CAIXABANK",
+      "estado": "X"
+    },
+    {
+      "id": "406ce7f5-fac4-4ec5-a2ae-01f64deb3046",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Endesa Gas (Bimensual)",
+      "importe": 67.08,
+      "entidad": "ING",
+      "estado": "P"
+    },
+    {
+      "id": "0d4c13e2-fc58-41d1-abef-63f1edeb699c",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 2,
+      "concepto": "Spotify DUO",
+      "importe": 16.99,
+      "entidad": "ING",
+      "estado": "P"
+    },
+    {
+      "id": "15b28ee6-ac9d-4dd3-8ac1-250653ab5d49",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 3,
+      "concepto": "Préstamo ING",
+      "importe": 350.17,
+      "entidad": "ING",
+      "estado": "P"
+    },
+    {
+      "id": "316f654c-115d-484c-99ba-b876f1b6e8b1",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 4,
+      "concepto": "ITV (Anual-Mayo)",
+      "importe": 30.36,
+      "entidad": "ING",
+      "estado": "-"
+    },
+    {
+      "id": "a7059847-e73e-4478-b06d-3b0a1a0ddf66",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 5,
+      "concepto": "Mastercard ING",
+      "importe": 1524.69,
+      "entidad": "ING",
+      "estado": "X"
+    },
+    {
+      "id": "ff353a61-1a2c-46ab-983c-15703174e17b",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 9,
+      "concepto": "Google One",
+      "importe": 2.99,
+      "entidad": "ING",
+      "estado": "X"
+    },
+    {
+      "id": "1a89f64d-ad3d-4041-9dff-90c3292849a8",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 18,
+      "concepto": "Luminar Neo Anual (Abril)",
+      "importe": 59.5,
+      "entidad": "ING",
+      "estado": "-"
+    },
+    {
+      "id": "e9eec868-81e8-4964-9806-9b3939ebdfa8",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 19,
+      "concepto": "Seguro Vida Rafa",
+      "importe": 48.13,
+      "entidad": "ING",
+      "estado": "X"
+    },
+    {
+      "id": "1051108c-7f63-4725-8422-82b99d2b1cea",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 22,
+      "concepto": "AnyList (Anual)",
+      "importe": 8.88,
+      "entidad": "ING",
+      "estado": "-"
+    },
+    {
+      "id": "6a3cc935-0ca4-42e5-8cb4-24710f838492",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 24,
+      "concepto": "Endesa Electricidad",
+      "importe": 69.38,
+      "entidad": "ING",
+      "estado": "X"
+    },
+    {
+      "id": "cd1c1fb7-a3d2-4808-94ad-7d4c106b329c",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 24,
+      "concepto": "HBO Max",
+      "importe": 7.99,
+      "entidad": "ING",
+      "estado": "X"
+    },
+    {
+      "id": "a6bc0a80-0bb3-4f3d-b8dd-6f466cf2f892",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "dia": 1,
+      "concepto": "Retenido",
+      "importe": 20.67,
+      "entidad": "ING",
+      "estado": "X"
+    }
+  ],
+  "balances": [
+    {
+      "id": "68802141-7650-4f6c-a726-ed8a7aeb2daa",
+      "month_id": "d84c30c3-9b81-4328-9ec1-1bd43d8339ab",
+      "caixabank": 3915.75,
+      "hucha": 500,
+      "ing_nomina": 5445.47,
+      "ing_naranja": 10022.01
+    }
+  ],
+  "loans": [
+    {
+      "id": "97ff3abe-0b6e-4c6d-88a6-0264f8d26df7",
+      "entidad": "Tablet",
+      "capital_inicial": 154.71,
+      "fecha_inicial": "2024-11-22",
+      "fecha_final": "2026-10-22",
+      "cuotas": 24,
+      "interes": 0,
+      "cuota": 7.6,
+      "faltan": 4,
+      "pendiente": 30.4,
+      "total_a_pagar": 154.71
+    },
+    {
+      "id": "d44ff655-6ed1-4e72-b149-ee8cdfd4f3fb",
+      "entidad": "Find X5",
+      "capital_inicial": 450,
+      "fecha_inicial": "2024-09-22",
+      "fecha_final": "2027-08-25",
+      "cuotas": 36,
+      "interes": 0,
+      "cuota": 16.5,
+      "faltan": 14,
+      "pendiente": 231,
+      "total_a_pagar": 450
+    },
+    {
+      "id": "14941722-8e3a-42a0-a510-c30d6b9f6d90",
+      "entidad": "Find X5 L",
+      "capital_inicial": 275.45,
+      "fecha_inicial": "2024-09-22",
+      "fecha_final": "2027-08-25",
+      "cuotas": 36,
+      "interes": 0,
+      "cuota": 10.3,
+      "faltan": 14,
+      "pendiente": 144.2,
+      "total_a_pagar": 275.45
+    },
+    {
+      "id": "c60c6a83-cdf6-4bb7-bb7c-cbb34ea0cdaa",
+      "entidad": "Carrefour",
+      "capital_inicial": 10000,
+      "fecha_inicial": "2021-04-01",
+      "fecha_final": "2029-03-01",
+      "cuotas": 96,
+      "interes": 10.71,
+      "cuota": 148.3,
+      "faltan": 33,
+      "pendiente": 4745.6,
+      "total_a_pagar": 14236.8
+    },
+    {
+      "id": "d0ff63a5-b422-4ffd-b50b-00121b5cfb5b",
+      "entidad": "ING",
+      "capital_inicial": 22500,
+      "fecha_inicial": "2023-10-03",
+      "fecha_final": "2030-09-03",
+      "cuotas": 84,
+      "interes": 7.99,
+      "cuota": 350.17,
+      "faltan": 51,
+      "pendiente": 17858.67,
+      "total_a_pagar": 29390.38
+    }
+  ],
+  "cards": [
+    {
+      "id": "f9202866-938c-4d07-9096-6aed48504483",
+      "tarjeta": "Carrefour Contado",
+      "credito": 1100,
+      "cuota": 0,
+      "pendiente": 0,
+      "disponible": 1100
+    },
+    {
+      "id": "439aa5a1-ccfd-4973-924a-1d95742b5590",
+      "tarjeta": "Carrefour Crédito",
+      "credito": 3000,
+      "cuota": 0,
+      "pendiente": 0,
+      "disponible": 3000
+    },
+    {
+      "id": "c54e3177-f01e-48b5-8984-27558d82482e",
+      "tarjeta": "Visa CAIXABANK",
+      "credito": 3000,
+      "cuota": 544.64,
+      "pendiente": 2455.36,
+      "disponible": 544.64
+    },
+    {
+      "id": "203af3b1-4a41-4a1b-bfb3-c2c71457a4bb",
+      "tarjeta": "Visa ING",
+      "credito": 2000,
+      "cuota": 1454.79,
+      "pendiente": 1504.61,
+      "disponible": 495.39
+    }
+  ]
+}
