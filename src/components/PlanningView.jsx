@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum } from '../utils';
+import { parseNum, parseIntNum, onNumKeyDown } from '../utils';
 import { Landmark, CreditCard, Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
@@ -155,15 +155,15 @@ export default function PlanningView() {
                     {isEditing ? (
                       <>
                         <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineLoanForm.entidad} onChange={e => setInlineLoanForm({...inlineLoanForm, entidad: e.target.value})} /></td>
-                        <td><input type="number" step="0.01" className="input" style={{ width: '80px', padding: '0.25rem' }} value={inlineLoanForm.capital_inicial} onChange={e => setInlineLoanForm({...inlineLoanForm, capital_inicial: parseNum(e.target.value)})} /></td>
-                        <td className="hide-tablet"><input type="number" step="0.01" className="input" style={{ width: '80px', padding: '0.25rem' }} value={inlineLoanForm.total_a_pagar} onChange={e => setInlineLoanForm({...inlineLoanForm, total_a_pagar: parseNum(e.target.value)})} /></td>
+                        <td><input type="number" step="0.01" className="input" style={{ width: '80px', padding: '0.25rem' }} value={inlineLoanForm.capital_inicial} onChange={e => setInlineLoanForm({...inlineLoanForm, capital_inicial: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} /></td>
+                        <td className="hide-tablet"><input type="number" step="0.01" className="input" style={{ width: '80px', padding: '0.25rem' }} value={inlineLoanForm.total_a_pagar} onChange={e => setInlineLoanForm({...inlineLoanForm, total_a_pagar: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} /></td>
                         <td className="hide-tablet"><input type="date" className="input" style={{ width: '110px', padding: '0.25rem' }} value={inlineLoanForm.fecha_inicial} onChange={e => setInlineLoanForm({...inlineLoanForm, fecha_inicial: e.target.value})} /></td>
                         <td className="hide-tablet"><input type="date" className="input" style={{ width: '110px', padding: '0.25rem' }} value={inlineLoanForm.fecha_final} onChange={e => setInlineLoanForm({...inlineLoanForm, fecha_final: e.target.value})} /></td>
                         <td><input type="number" className="input" style={{ width: '50px', padding: '0.25rem' }} value={inlineLoanForm.cuotas} onChange={e => setInlineLoanForm({...inlineLoanForm, cuotas: parseIntNum(e.target.value)})} /></td>
-                        <td className="hide-tablet"><input type="number" step="0.01" className="input" style={{ width: '50px', padding: '0.25rem' }} value={inlineLoanForm.interes} onChange={e => setInlineLoanForm({...inlineLoanForm, interes: parseNum(e.target.value)})} /></td>
-                        <td><input type="number" step="0.01" className="input" style={{ width: '70px', padding: '0.25rem' }} value={inlineLoanForm.cuota} onChange={e => setInlineLoanForm({...inlineLoanForm, cuota: parseNum(e.target.value)})} /></td>
+                        <td className="hide-tablet"><input type="number" step="0.01" className="input" style={{ width: '50px', padding: '0.25rem' }} value={inlineLoanForm.interes} onChange={e => setInlineLoanForm({...inlineLoanForm, interes: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} /></td>
+                        <td><input type="number" step="0.01" className="input" style={{ width: '70px', padding: '0.25rem' }} value={inlineLoanForm.cuota} onChange={e => setInlineLoanForm({...inlineLoanForm, cuota: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} /></td>
                         <td><input type="number" className="input" style={{ width: '50px', padding: '0.25rem' }} value={inlineLoanForm.faltan} onChange={e => setInlineLoanForm({...inlineLoanForm, faltan: parseIntNum(e.target.value)})} /></td>
-                        <td><input type="number" step="0.01" className="input" style={{ width: '80px', padding: '0.25rem' }} value={inlineLoanForm.pendiente} onChange={e => setInlineLoanForm({...inlineLoanForm, pendiente: parseNum(e.target.value)})} /></td>
+                        <td><input type="number" step="0.01" className="input" style={{ width: '80px', padding: '0.25rem' }} value={inlineLoanForm.pendiente} onChange={e => setInlineLoanForm({...inlineLoanForm, pendiente: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} /></td>
                         <td className="td-actions">
                           <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                             <button className="btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={saveInlineLoan}><Check size={16} color="var(--success)" /></button>
@@ -244,10 +244,10 @@ export default function PlanningView() {
                   {isEditing ? (
                     <>
                       <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineCardForm.tarjeta} onChange={e => setInlineCardForm({...inlineCardForm, tarjeta: e.target.value})} /></td>
-                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.credito} onChange={e => handleInlineCardChange('credito', e.target.value)} /></td>
-                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.cuota} onChange={e => handleInlineCardChange('cuota', e.target.value)} /></td>
-                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--danger)' }} value={inlineCardForm.pendiente} onChange={e => handleInlineCardChange('pendiente', e.target.value)} /></td>
-                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--success)' }} value={inlineCardForm.disponible} onChange={e => handleInlineCardChange('disponible', e.target.value)} /></td>
+                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.credito} onChange={e => handleInlineCardChange('credito', e.target.value)} onKeyDown={onNumKeyDown} /></td>
+                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.cuota} onChange={e => handleInlineCardChange('cuota', e.target.value)} onKeyDown={onNumKeyDown} /></td>
+                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--danger)' }} value={inlineCardForm.pendiente} onChange={e => handleInlineCardChange('pendiente', e.target.value)} onKeyDown={onNumKeyDown} /></td>
+                      <td><input type="number" step="0.01" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--success)' }} value={inlineCardForm.disponible} onChange={e => handleInlineCardChange('disponible', e.target.value)} onKeyDown={onNumKeyDown} /></td>
                       <td className="td-actions">
                         <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                           <button className="btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={saveInlineCard}><Check size={16} color="var(--success)" /></button>
@@ -294,8 +294,8 @@ export default function PlanningView() {
         <form onSubmit={saveNewLoan}>
           <div className="form-group"><label>Entidad / Concepto</label><input type="text" className="input" value={loanForm.entidad} onChange={e => setLoanForm({...loanForm, entidad: e.target.value})} required /></div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <div className="form-group" style={{ flex: 1 }}><label>Capital Inicial</label><input type="number" step="0.01" className="input" value={loanForm.capital_inicial} onChange={e => setLoanForm({...loanForm, capital_inicial: parseNum(e.target.value)})} required /></div>
-            <div className="form-group" style={{ flex: 1 }}><label>Total a Pagar</label><input type="number" step="0.01" className="input" value={loanForm.total_a_pagar} onChange={e => setLoanForm({...loanForm, total_a_pagar: parseNum(e.target.value)})} required /></div>
+            <div className="form-group" style={{ flex: 1 }}><label>Capital Inicial</label><input type="number" step="0.01" className="input" value={loanForm.capital_inicial} onChange={e => setLoanForm({...loanForm, capital_inicial: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} required /></div>
+            <div className="form-group" style={{ flex: 1 }}><label>Total a Pagar</label><input type="number" step="0.01" className="input" value={loanForm.total_a_pagar} onChange={e => setLoanForm({...loanForm, total_a_pagar: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} required /></div>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <div className="form-group" style={{ flex: 1 }}><label>Fecha Inicial</label><input type="date" className="input" value={loanForm.fecha_inicial} onChange={e => setLoanForm({...loanForm, fecha_inicial: e.target.value})} /></div>
@@ -303,13 +303,13 @@ export default function PlanningView() {
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <div className="form-group" style={{ flex: 1 }}><label>Cuotas Totales</label><input type="number" className="input" value={loanForm.cuotas} onChange={e => setLoanForm({...loanForm, cuotas: parseIntNum(e.target.value)})} required /></div>
-            <div className="form-group" style={{ flex: 1 }}><label>Interés (%)</label><input type="number" step="0.01" className="input" value={loanForm.interes} onChange={e => setLoanForm({...loanForm, interes: parseNum(e.target.value)})} required /></div>
+            <div className="form-group" style={{ flex: 1 }}><label>Interés (%)</label><input type="number" step="0.01" className="input" value={loanForm.interes} onChange={e => setLoanForm({...loanForm, interes: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} required /></div>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <div className="form-group" style={{ flex: 1 }}><label>Cuota Mensual</label><input type="number" step="0.01" className="input" value={loanForm.cuota} onChange={e => setLoanForm({...loanForm, cuota: parseNum(e.target.value)})} required /></div>
+            <div className="form-group" style={{ flex: 1 }}><label>Cuota Mensual</label><input type="number" step="0.01" className="input" value={loanForm.cuota} onChange={e => setLoanForm({...loanForm, cuota: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} required /></div>
             <div className="form-group" style={{ flex: 1 }}><label>Faltan</label><input type="number" className="input" value={loanForm.faltan} onChange={e => setLoanForm({...loanForm, faltan: parseIntNum(e.target.value)})} required /></div>
           </div>
-          <div className="form-group"><label>Capital Pendiente</label><input type="number" step="0.01" className="input" value={loanForm.pendiente} onChange={e => setLoanForm({...loanForm, pendiente: parseNum(e.target.value)})} required /></div>
+          <div className="form-group"><label>Capital Pendiente</label><input type="number" step="0.01" className="input" value={loanForm.pendiente} onChange={e => setLoanForm({...loanForm, pendiente: parseNum(e.target.value)})} onKeyDown={onNumKeyDown} required /></div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Crear Préstamo</button>
         </form>
       </Modal>
@@ -318,12 +318,12 @@ export default function PlanningView() {
       <Modal isOpen={isCardModalOpen} onClose={() => setIsCardModalOpen(false)} title="Nueva Tarjeta">
         <form onSubmit={saveNewCard}>
           <div className="form-group"><label>Nombre Tarjeta</label><input type="text" className="input" value={cardForm.tarjeta} onChange={e => setCardForm({...cardForm, tarjeta: e.target.value})} required /></div>
-          <div className="form-group"><label>Crédito Total</label><input type="number" step="0.01" className="input" value={cardForm.credito} onChange={e => handleNewCardChange('credito', e.target.value)} required /></div>
+          <div className="form-group"><label>Crédito Total</label><input type="number" step="0.01" className="input" value={cardForm.credito} onChange={e => handleNewCardChange('credito', e.target.value)} onKeyDown={onNumKeyDown} required /></div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <div className="form-group" style={{ flex: 1 }}><label>Pendiente (Ocupado)</label><input type="number" step="0.01" className="input" value={cardForm.pendiente} onChange={e => handleNewCardChange('pendiente', e.target.value)} required /></div>
-            <div className="form-group" style={{ flex: 1 }}><label>Disponible</label><input type="number" step="0.01" className="input" value={cardForm.disponible} onChange={e => handleNewCardChange('disponible', e.target.value)} required /></div>
+            <div className="form-group" style={{ flex: 1 }}><label>Pendiente (Ocupado)</label><input type="number" step="0.01" className="input" value={cardForm.pendiente} onChange={e => handleNewCardChange('pendiente', e.target.value)} onKeyDown={onNumKeyDown} required /></div>
+            <div className="form-group" style={{ flex: 1 }}><label>Disponible</label><input type="number" step="0.01" className="input" value={cardForm.disponible} onChange={e => handleNewCardChange('disponible', e.target.value)} onKeyDown={onNumKeyDown} required /></div>
           </div>
-          <div className="form-group"><label>Próximo Recibo (Cuota)</label><input type="number" step="0.01" className="input" value={cardForm.cuota} onChange={e => handleNewCardChange('cuota', e.target.value)} required /></div>
+          <div className="form-group"><label>Próximo Recibo (Cuota)</label><input type="number" step="0.01" className="input" value={cardForm.cuota} onChange={e => handleNewCardChange('cuota', e.target.value)} onKeyDown={onNumKeyDown} required /></div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Crear Tarjeta</button>
         </form>
       </Modal>

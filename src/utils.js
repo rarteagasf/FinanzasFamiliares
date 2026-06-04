@@ -11,3 +11,16 @@ export function parseIntNum(value) {
   const num = parseInt(str, 10);
   return isNaN(num) ? 0 : num;
 }
+
+export function onNumKeyDown(e) {
+  if ((e.key === 'Delete' && e.location === 3) || e.key === '.') {
+    e.preventDefault();
+    const input = e.target;
+    if (input.value.includes('.') || input.value.includes(',')) return;
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype, 'value'
+    ).set;
+    nativeSetter.call(input, input.value + ',');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
