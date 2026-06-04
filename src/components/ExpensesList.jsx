@@ -195,9 +195,9 @@ export default function ExpensesList() {
                         </td>
                         <td>
                           <select className="input" style={{ padding: '0.25rem' }} value={inlineForm.estado} onChange={e => setInlineForm({...inlineForm, estado: e.target.value})}>
-                            <option value="P">Pagado (P)</option>
-                            <option value="X">Pendiente (X)</option>
-                            <option value="-">No aplica (-)</option>
+                            <option value="P">Pagado</option>
+                            <option value="X">Pendiente</option>
+                            <option value="-">No aplica</option>
                           </select>
                         </td>
                         <td style={{ textAlign: 'right' }}>
@@ -242,9 +242,9 @@ export default function ExpensesList() {
                             value={expense.estado}
                             onChange={(e) => updateExpense(expense.id, { estado: e.target.value })}
                           >
-                            <option value="P">Pagado (P)</option>
-                            <option value="X">Pendiente (X)</option>
-                            <option value="-">No aplica (-)</option>
+                            <option value="P">Pagado</option>
+                            <option value="X">Pendiente</option>
+                            <option value="-">No aplica</option>
                           </select>
                         </td>
                         <td style={{ textAlign: 'right' }}>
@@ -277,7 +277,7 @@ export default function ExpensesList() {
           <div className="form-group"><label>Concepto</label><input type="text" className="input" value={formData.concepto} onChange={e => setFormData({...formData, concepto: e.target.value})} required /></div>
           <div className="form-group"><label>Importe (€)</label><input type="number" step="0.01" className="input" value={formData.importe} onChange={e => setFormData({...formData, importe: parseFloat(e.target.value)})} required /></div>
           <div className="form-group"><label>Entidad</label><select className="input" value={formData.entidad} onChange={e => setFormData({...formData, entidad: e.target.value})} required>{entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}</select></div>
-          <div className="form-group"><label>Estado Inicial</label><select className="input" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})}><option value="X">Pendiente (X)</option><option value="P">Pagado (P)</option><option value="-">No aplica (-)</option></select></div>
+          <div className="form-group"><label>Estado Inicial</label><select className="input" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})}><option value="X">Pendiente</option><option value="P">Pagado</option><option value="-">No aplica</option></select></div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Guardar Gasto</button>
         </form>
       </Modal>

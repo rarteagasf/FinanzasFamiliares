@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { CreditCard, ArrowDownCircle } from 'lucide-react';
+import { CreditCard, ArrowDownCircle, Pencil } from 'lucide-react';
 
 export default function Dashboard() {
-  const { balances, expenses, cards, entities } = useStore();
+  const { balances, expenses, cards, entities, updateBalance } = useStore();
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [editValue, setEditValue] = useState('');
 
   const totalSaldos = (balances.caixabank || 0) + (balances.hucha || 0) + (balances.ing_nomina || 0) + (balances.ing_naranja || 0);
   
@@ -46,22 +49,38 @@ export default function Dashboard() {
             {totalSaldos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>CaixaBank</span>
-              <span>{balances.caixabank.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>ING Nómina</span>
-              <span>{balances.ing_nomina.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>ING Naranja</span>
-              <span>{balances.ing_naranja.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Hucha</span>
-              <span>{balances.hucha.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-            </div>
+            {[
+              { key: 'caixabank', label: 'CaixaBank' },
+              { key: 'ing_nomina', label: 'ING Nómina' },
+              { key: 'ing_naranja', label: 'ING Naranja' },
+              { key: 'hucha', label: 'Hucha' },
+            ].map(({ key, label }) => (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+                {editingAccount === key ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input"
+                    style={{ width: '120px', padding: '0.15rem 0.5rem', textAlign: 'right' }}
+                    value={editValue}
+                    autoFocus
+                    onChange={e => setEditValue(e.target.value)}
+                    onBlur={() => { updateBalance(key, parseFloat(editValue) || 0); setEditingAccount(null); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { updateBalance(key, parseFloat(editValue) || 0); setEditingAccount(null); } if (e.key === 'Escape') setEditingAccount(null); }}
+                  />
+                ) : (
+                  <span
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    onClick={() => { setEditingAccount(key); setEditValue(String(balances[key] || 0)); }}
+                    title="Editar saldo"
+                  >
+                    {(balances[key] || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    <Pencil size={12} style={{ opacity: 0.4 }} />
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
