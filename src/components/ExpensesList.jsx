@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
 import { RefreshCw, ArrowUpDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
@@ -106,7 +106,7 @@ export default function ExpensesList() {
   // --- Inline Editing Logic ---
   const startInlineEditing = (expense) => {
     setInlineEditingId(expense.id);
-    setInlineForm({ ...expense });
+    setInlineForm({ ...expense, importe: formatInputDecimal(expense.importe) });
   };
 
   const cancelInlineEditing = () => {
@@ -115,7 +115,12 @@ export default function ExpensesList() {
   };
 
   const saveInlineEditing = async () => {
-    const { error } = await updateExpense(inlineEditingId, inlineForm);
+    const saveData = {
+      ...inlineForm,
+      dia: parseIntNum(inlineForm.dia),
+      importe: parseNum(inlineForm.importe),
+    };
+    const { error } = await updateExpense(inlineEditingId, saveData);
     if (!error) {
       toast.success('Guardado');
       setInlineEditingId(null);
@@ -188,7 +193,7 @@ export default function ExpensesList() {
                       <>
                         <td><input type="number" className="input" style={{ width: '60px', padding: '0.25rem' }} value={inlineForm.dia} onChange={e => setInlineForm({...inlineForm, dia: parseIntNum(e.target.value)})} min="1" max="31" onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
                         <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineForm.concepto} onChange={e => setInlineForm({...inlineForm, concepto: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
-                        <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={formatInputDecimal(inlineForm.importe)} onChange={e => setInlineForm({...inlineForm, importe: parseNum(normalizeDecimalInput(e.target.value))})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); onNumKeyDown(e); }} /></td>
+                        <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineForm.importe} onChange={e => setInlineForm({...inlineForm, importe: normalizeDecimalInput(e.target.value)})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
                         <td>
                           <select className="input" style={{ padding: '0.25rem' }} value={inlineForm.entidad} onChange={e => setInlineForm({...inlineForm, entidad: e.target.value})}>
                             {entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}
@@ -276,7 +281,7 @@ export default function ExpensesList() {
         <form onSubmit={saveExpense}>
           <div className="form-group"><label>Día</label><input type="number" className="input" value={formData.dia} onChange={e => setFormData({...formData, dia: parseInt(e.target.value)})} required min="1" max="31" /></div>
           <div className="form-group"><label>Concepto</label><input type="text" className="input" value={formData.concepto} onChange={e => setFormData({...formData, concepto: e.target.value})} required /></div>
-          <div className="form-group"><label>Importe (€)</label><input type="text" inputMode="decimal" className="input" value={formatInputDecimal(formData.importe)} onChange={e => setFormData({...formData, importe: parseNum(normalizeDecimalInput(e.target.value))})} onKeyDown={onNumKeyDown} required /></div>
+          <div className="form-group"><label>Importe (€)</label><input type="text" inputMode="decimal" className="input" value={formatInputDecimal(formData.importe)} onChange={e => setFormData({...formData, importe: parseNum(normalizeDecimalInput(e.target.value))})} required /></div>
           <div className="form-group"><label>Entidad</label><select className="input" value={formData.entidad} onChange={e => setFormData({...formData, entidad: e.target.value})} required>{entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}</select></div>
           <div className="form-group"><label>Estado Inicial</label><select className="input" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})}><option value="X">Pendiente</option><option value="P">Pagado</option><option value="-">No aplica</option></select></div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Guardar Gasto</button>

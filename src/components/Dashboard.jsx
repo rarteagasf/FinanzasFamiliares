@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { CreditCard, ArrowDownCircle, Pencil } from 'lucide-react';
-import { parseNum, normalizeDecimalInput, formatCurrency, onNumKeyDown } from '../utils';
+import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
 
 export default function Dashboard() {
   const { balances, expenses, cards, entities, updateBalance } = useStore();
@@ -68,12 +68,12 @@ export default function Dashboard() {
                     autoFocus
                     onChange={e => setEditValue(normalizeDecimalInput(e.target.value))}
                     onBlur={() => { updateBalance(key, parseNum(editValue)); setEditingAccount(null); }}
-                    onKeyDown={e => { if (e.key === 'Enter') { updateBalance(key, parseNum(editValue)); setEditingAccount(null); } if (e.key === 'Escape') setEditingAccount(null); onNumKeyDown(e); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { updateBalance(key, parseNum(editValue)); setEditingAccount(null); } if (e.key === 'Escape') setEditingAccount(null); }}
                   />
                 ) : (
                   <span
                     style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                    onClick={() => { setEditingAccount(key); setEditValue(String(balances[key] || 0)); }}
+                    onClick={() => { setEditingAccount(key); setEditValue(formatInputDecimal(balances[key] || 0)); }}
                     title="Editar saldo"
                   >
                     {formatCurrency(balances[key] || 0)}
