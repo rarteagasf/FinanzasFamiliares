@@ -54,7 +54,7 @@ export function formatNumber(value, options = {}) {
 export function formatInputDecimal(value) {
   const num = Number(value);
   if (isNaN(num)) return '';
-  return String(num).replace('.', ',');
+  return num.toFixed(2).replace('.', ',');
 }
 
 export function onNumKeyDown(e) {
