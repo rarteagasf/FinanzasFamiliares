@@ -23,8 +23,8 @@ export default function Dashboard() {
   
   // Disponible
   const dispCaixa = balances.caixabank - totalPendienteCaixa;
-  const dispING = balances.ing_nomina - totalPendienteING;
-  const totalDisponible = dispCaixa + dispING + balances.ing_naranja + balances.hucha;
+  const dispING = (balances.ing_nomina + balances.ing_naranja) - totalPendienteING;
+  const totalDisponible = dispCaixa + dispING + balances.hucha;
 
   // Gastos Pendientes para desglose
   const pendingExpenses = expenses.filter(e => e.estado === 'X').sort((a,b) => a.dia - b.dia);
