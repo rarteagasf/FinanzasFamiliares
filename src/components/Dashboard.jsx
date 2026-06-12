@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { CreditCard, ArrowDownCircle, Pencil } from 'lucide-react';
+import { ArrowDownCircle, Pencil } from 'lucide-react';
 import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
 
 export default function Dashboard() {
@@ -123,7 +123,7 @@ export default function Dashboard() {
       </div>
 
       <div className="card" style={{ marginBottom: '2rem' }}>
-        <h2 className="card-title"><CreditCard size={24} /> Próximos Recibos Tarjetas</h2>
+        <h2 className="card-title">Próximos Recibos Tarjetas</h2>
         <div className="table-container">
           <table>
             <thead>

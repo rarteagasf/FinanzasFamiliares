@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
-import { RefreshCw, ArrowUpDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon, Wallet } from 'lucide-react';
+import { RefreshCw, ArrowUpDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
@@ -192,7 +192,6 @@ export default function ExpensesList() {
         justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-          <Wallet size={16} />
           <span>Saldos de Cuentas:</span>
         </div>
         <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>

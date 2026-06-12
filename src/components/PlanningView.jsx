@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate } from '../utils';
-import { Landmark, CreditCard, Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
@@ -158,7 +158,7 @@ export default function PlanningView() {
       {/* Préstamos */}
       <div className="card" style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 className="card-title" style={{ margin: 0 }}><Landmark size={24} color="var(--primary)" /> Préstamos</h2>
+          <h2 className="card-title" style={{ margin: 0 }}>Préstamos</h2>
           <button className="btn btn-primary" onClick={openLoanModal}>
             <Plus size={16} /> Añadir Préstamo
           </button>
@@ -252,7 +252,7 @@ export default function PlanningView() {
       {/* Tarjetas */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 className="card-title" style={{ margin: 0 }}><CreditCard size={24} color="var(--warning)" /> Tarjetas</h2>
+          <h2 className="card-title" style={{ margin: 0 }}>Tarjetas</h2>
           <button className="btn btn-primary" onClick={openCardModal}>
             <Plus size={16} /> Añadir Tarjeta
           </button>
