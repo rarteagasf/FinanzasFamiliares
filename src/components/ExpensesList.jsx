@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
-import { RefreshCw, ArrowUpDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
+import { RefreshCw, ArrowUpDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon, Wallet } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function ExpensesList() {
-  const { expenses, entities, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity } = useStore();
+  const { expenses, entities, balances, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity } = useStore();
   
   const [sortBy, setSortBy] = useState('dia'); // 'dia' | 'entidad'
   const [filterEntidad, setFilterEntidad] = useState('ALL');
@@ -24,9 +24,19 @@ export default function ExpensesList() {
   const [inlineEditingId, setInlineEditingId] = useState(null);
   const [inlineForm, setInlineForm] = useState({});
 
+  // Confirmation State
+  const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
   const handleReset = (entidad) => {
-    resetExpensesState(entidad);
-    toast.success(`Estados de ${entidad} reseteados`);
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar reinicio de estados',
+      message: `¿Estás seguro de reiniciar a "Pendiente" todos los estados de los gastos de "${entidad}"?`,
+      onConfirm: () => {
+        resetExpensesState(entidad);
+        toast.success(`Estados de ${entidad} reseteados`);
+      }
+    });
   };
 
   const getSortedAndFiltered = () => {
@@ -63,20 +73,36 @@ export default function ExpensesList() {
   const saveExpense = async (e) => {
     e.preventDefault();
     if (editingExpense) {
-      const { error } = await updateExpense(editingExpense.id, formData);
-      if (!error) toast.success('Gasto actualizado');
-      else toast.error('Error al actualizar');
+      setConfirmState({
+        isOpen: true,
+        title: 'Confirmar actualización',
+        message: `¿Estás seguro de guardar los cambios para el gasto "${formData.concepto}"?`,
+        onConfirm: async () => {
+          const { error } = await updateExpense(editingExpense.id, formData);
+          if (!error) toast.success('Gasto actualizado');
+          else toast.error('Error al actualizar');
+          setIsExpenseModalOpen(false);
+        }
+      });
     } else {
       const { error } = await addExpense(formData);
       if (!error) toast.success('Gasto añadido');
       else toast.error('Error al añadir');
+      setIsExpenseModalOpen(false);
     }
-    setIsExpenseModalOpen(false);
   };
 
   const handleDelete = async (id) => {
-    const { error } = await deleteExpense(id);
-    if (!error) toast.success('Gasto eliminado');
+    const expense = expenses.find(e => e.id === id);
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar eliminación',
+      message: `¿Estás seguro de eliminar el gasto "${expense?.concepto || ''}"?`,
+      onConfirm: async () => {
+        const { error } = await deleteExpense(id);
+        if (!error) toast.success('Gasto eliminado');
+      }
+    });
   };
 
   const handleDuplicate = async (expense) => {
@@ -120,18 +146,88 @@ export default function ExpensesList() {
       dia: parseIntNum(inlineForm.dia),
       importe: parseNum(inlineForm.importe),
     };
-    const { error } = await updateExpense(inlineEditingId, saveData);
-    if (!error) {
-      toast.success('Guardado');
-      setInlineEditingId(null);
-    } else {
-      toast.error('Error al guardar');
-    }
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar edición en línea',
+      message: `¿Estás seguro de guardar los cambios del gasto "${inlineForm.concepto}"?`,
+      onConfirm: async () => {
+        const { error } = await updateExpense(inlineEditingId, saveData);
+        if (!error) {
+          toast.success('Guardado');
+          setInlineEditingId(null);
+        } else {
+          toast.error('Error al guardar');
+        }
+      }
+    });
   };
+
+
+  const totalPendienteCaixa = expenses
+    .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
+    .reduce((acc, curr) => acc + curr.importe, 0);
+    
+  const totalPendienteING = expenses
+    .filter(e => e.estado === 'X' && e.entidad === 'ING')
+    .reduce((acc, curr) => acc + curr.importe, 0);
+
+  const dispCaixa = (balances?.caixabank || 0) - totalPendienteCaixa;
+  const dispING = (balances?.ing_nomina || 0) - totalPendienteING;
 
   return (
     <div className="expenses-view">
       
+      {/* Barra de Saldos de Cuentas */}
+      <div className="balances-summary-bar" style={{
+        display: 'flex',
+        gap: '1.5rem',
+        marginBottom: '1.5rem',
+        flexWrap: 'wrap',
+        background: 'var(--bg-card)',
+        padding: '0.85rem 1.25rem',
+        borderRadius: '12px',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-sm)',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+          <Wallet size={16} />
+          <span>Saldos de Cuentas:</span>
+        </div>
+        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
+            <span style={{ fontWeight: 600, color: 'var(--caixabank)' }}>CaixaBank</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+              {formatCurrency(balances?.caixabank || 0)} 
+              <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.35rem', fontSize: '0.75rem' }}>
+                (Disp: {formatCurrency(dispCaixa)})
+              </span>
+            </span>
+          </div>
+          <div style={{ width: '1px', height: '22px', background: 'var(--border)' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
+            <span style={{ fontWeight: 600, color: 'var(--ing)' }}>ING Nómina</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+              {formatCurrency(balances?.ing_nomina || 0)} 
+              <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.35rem', fontSize: '0.75rem' }}>
+                (Disp: {formatCurrency(dispING)})
+              </span>
+            </span>
+          </div>
+          <div style={{ width: '1px', height: '22px', background: 'var(--border)' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>ING Naranja</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{formatCurrency(balances?.ing_naranja || 0)}</span>
+          </div>
+          <div style={{ width: '1px', height: '22px', background: 'var(--border)' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Hucha</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{formatCurrency(balances?.hucha || 0)}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="card expenses-toolbar">
         <div className="toolbar-filters">
           <div className="filter-group">
@@ -227,7 +323,16 @@ export default function ExpensesList() {
                             className="input" 
                             style={{ padding: '0.25rem', border: 'none', background: 'transparent', color: getEntityColor(expense.entidad), fontWeight: 600, cursor: 'pointer' }}
                             value={expense.entidad}
-                            onChange={(e) => updateExpense(expense.id, { entidad: e.target.value })}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              const oldValue = expense.entidad;
+                              setConfirmState({
+                                isOpen: true,
+                                title: 'Confirmar cambio de entidad',
+                                message: `¿Estás seguro de cambiar la entidad de "${expense.concepto}" de "${oldValue}" a "${newValue}"?`,
+                                onConfirm: () => updateExpense(expense.id, { entidad: newValue }),
+                              });
+                            }}
                           >
                             {entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}
                           </select>
@@ -246,7 +351,17 @@ export default function ExpensesList() {
                               cursor: 'pointer'
                             }}
                             value={expense.estado}
-                            onChange={(e) => updateExpense(expense.id, { estado: e.target.value })}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              const oldValue = expense.estado;
+                              const getEstadoLabel = (est) => est === 'P' ? 'Pagado' : est === 'X' ? 'Pendiente' : 'No aplica';
+                              setConfirmState({
+                                isOpen: true,
+                                title: 'Confirmar cambio de estado',
+                                message: `¿Estás seguro de cambiar el estado de "${expense.concepto}" de "${getEstadoLabel(oldValue)}" a "${getEstadoLabel(newValue)}"?`,
+                                onConfirm: () => updateExpense(expense.id, { estado: newValue }),
+                              });
+                            }}
                           >
                             <option value="P">Pagado</option>
                             <option value="X">Pendiente</option>
@@ -304,6 +419,26 @@ export default function ExpensesList() {
           <input type="text" className="input" placeholder="Nueva entidad..." value={newEntityName} onChange={e => setNewEntityName(e.target.value)} required />
           <button type="submit" className="btn btn-primary">Añadir</button>
         </form>
+      </Modal>
+
+      {/* Modal Confirmación Genérico */}
+      <Modal 
+        isOpen={confirmState.isOpen} 
+        onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} 
+        title={confirmState.title || 'Confirmar Acción'}
+      >
+        <p style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>{confirmState.message}</p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" onClick={() => {
+            confirmState.onConfirm();
+            setConfirmState(prev => ({ ...prev, isOpen: false }));
+          }}>
+            Confirmar
+          </button>
+        </div>
       </Modal>
     </div>
   );
