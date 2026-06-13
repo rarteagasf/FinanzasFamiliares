@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
-import { RefreshCw, ArrowUpDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
+import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
@@ -9,7 +9,9 @@ export default function ExpensesList() {
   const { expenses, entities, balances, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity } = useStore();
   
   const [sortBy, setSortBy] = useState('dia'); // 'dia' | 'entidad'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' | 'desc'
   const [filterEntidad, setFilterEntidad] = useState('ALL');
+  const [filterEstado, setFilterEstado] = useState('ALL');
 
   // Modal states (Adding / Fallback editing)
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -44,10 +46,17 @@ export default function ExpensesList() {
     if (filterEntidad !== 'ALL') {
       result = result.filter(e => e.entidad === filterEntidad);
     }
+    if (filterEstado !== 'ALL') {
+      result = result.filter(e => e.estado === filterEstado);
+    }
     result.sort((a, b) => {
-      if (sortBy === 'dia') return a.dia - b.dia;
-      if (sortBy === 'entidad') return a.entidad.localeCompare(b.entidad);
-      return 0;
+      let comparison = 0;
+      if (sortBy === 'dia') {
+        comparison = a.dia - b.dia;
+      } else if (sortBy === 'entidad') {
+        comparison = a.entidad.localeCompare(b.entidad);
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
     return result;
   };
@@ -228,11 +237,11 @@ export default function ExpensesList() {
       </div>
 
       <div className="card expenses-toolbar">
-        <div className="toolbar-filters">
+        <div className="toolbar-filters" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="filter-group">
             <label className="filter-label">
               <Filter size={14} />
-              Filtrar
+              Entidad
             </label>
             <select className="input" value={filterEntidad} onChange={(e) => setFilterEntidad(e.target.value)}>
               <option value="ALL">Todas</option>
@@ -241,13 +250,43 @@ export default function ExpensesList() {
           </div>
           <div className="filter-group">
             <label className="filter-label">
-              <ArrowUpDown size={14} />
-              Ordenar
+              <Filter size={14} />
+              Estado
             </label>
-            <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-              <option value="dia">Día</option>
-              <option value="entidad">Entidad</option>
+            <select className="input" value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)}>
+              <option value="ALL">Todos</option>
+              <option value="P">Pagado</option>
+              <option value="X">Pendiente</option>
+              <option value="-">No aplica</option>
             </select>
+          </div>
+          <div className="filter-group" style={{ display: 'flex', alignItems: 'flex-end', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <label className="filter-label">
+                <ArrowUpDown size={14} />
+                Ordenar por
+              </label>
+              <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="dia">Día</option>
+                <option value="entidad">Entidad</option>
+              </select>
+            </div>
+            <button 
+              className="btn btn-secondary" 
+              style={{ 
+                height: '38px', 
+                width: '38px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: 0,
+                alignSelf: 'flex-end'
+              }} 
+              onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+              title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
+            >
+              {sortOrder === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+            </button>
           </div>
         </div>
         <div className="toolbar-actions">
