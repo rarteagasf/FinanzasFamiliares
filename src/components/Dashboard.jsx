@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { ArrowDownCircle, Pencil } from 'lucide-react';
 import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
+import CurrencyValue from './ui/CurrencyValue';
 
 export default function Dashboard() {
   const { balances, expenses, cards, entities, updateBalance } = useStore();
@@ -47,7 +48,7 @@ export default function Dashboard() {
           <h2 className="card-title">Saldos Totales</h2>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Actual</div>
           <div style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '1.5rem' }}>
-            {formatCurrency(totalSaldos)}
+            <CurrencyValue value={totalSaldos} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {[
@@ -76,7 +77,7 @@ export default function Dashboard() {
                     onClick={() => { setEditingAccount(key); setEditValue(formatInputDecimal(balances[key] || 0)); }}
                     title="Editar saldo"
                   >
-                    {formatCurrency(balances[key] || 0)}
+                    <CurrencyValue value={balances[key] || 0} />
                     <Pencil size={12} style={{ opacity: 0.4 }} />
                   </span>
                 )}
@@ -89,16 +90,16 @@ export default function Dashboard() {
           <h2 className="card-title"><ArrowDownCircle size={24} color="var(--danger)" /> Gastos Pendientes</h2>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Pendiente</div>
           <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--danger)', marginBottom: '1.5rem' }}>
-            {formatCurrency(totalGastosPendientes)}
+            <CurrencyValue value={totalGastosPendientes} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--info)' }}>CaixaBank Pendiente</span>
-              <span>{formatCurrency(totalPendienteCaixa)}</span>
+              <CurrencyValue value={totalPendienteCaixa} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--warning)' }}>ING Pendiente</span>
-              <span>{formatCurrency(totalPendienteING)}</span>
+              <CurrencyValue value={totalPendienteING} />
             </div>
           </div>
         </div>
@@ -107,16 +108,16 @@ export default function Dashboard() {
           <h2 className="card-title">Saldo Disponible</h2>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Libre de cargas</div>
           <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--success)', marginBottom: '1.5rem' }}>
-            {formatCurrency(totalDisponible)}
+            <CurrencyValue value={totalDisponible} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Disponible Caixa</span>
-              <span>{formatCurrency(dispCaixa)}</span>
+              <CurrencyValue value={dispCaixa} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Disponible ING</span>
-              <span>{formatCurrency(dispING)}</span>
+              <CurrencyValue value={dispING} />
             </div>
           </div>
         </div>
@@ -138,9 +139,9 @@ export default function Dashboard() {
               {cards.map(card => (
                 <tr key={card.id}>
                   <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
-                  <td>{formatCurrency(card.cuota)}</td>
-                  <td style={{ color: 'var(--danger)' }}>{formatCurrency(Math.abs(card.pendiente))}</td>
-                  <td style={{ color: 'var(--success)' }}>{formatCurrency(card.disponible)}</td>
+                  <td><CurrencyValue value={card.cuota} /></td>
+                  <td style={{ color: 'var(--danger)' }}><CurrencyValue value={Math.abs(card.pendiente)} /></td>
+                  <td><CurrencyValue value={card.disponible} /></td>
                 </tr>
               ))}
             </tbody>
@@ -163,7 +164,7 @@ export default function Dashboard() {
                 <div key={entidadName} style={{ background: 'var(--bg-main)', borderRadius: '8px', padding: '1rem', border: `1px solid ${entidadColor}30` }}>
                   <h3 style={{ margin: '0 0 1rem 0', color: entidadColor, fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between' }}>
                     {entidadName}
-                    <span>{formatCurrency(totalEntidad)}</span>
+                    <CurrencyValue value={totalEntidad} />
                   </h3>
                   <div className="table-container" style={{ margin: 0 }}>
                     <table style={{ fontSize: '0.875rem' }}>
@@ -180,7 +181,7 @@ export default function Dashboard() {
                             <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{expense.dia}</td>
                             <td style={{ padding: '0.5rem' }}>{expense.concepto}</td>
                             <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>
-                              {formatCurrency(expense.importe)}
+                              <CurrencyValue value={expense.importe} />
                             </td>
                           </tr>
                         ))}

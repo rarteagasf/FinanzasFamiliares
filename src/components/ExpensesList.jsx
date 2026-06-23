@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
 import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
+import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
@@ -207,9 +208,9 @@ export default function ExpensesList() {
           <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
             <span style={{ fontWeight: 600, color: 'var(--caixabank)' }}>CaixaBank</span>
             <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-              {formatCurrency(balances?.caixabank || 0)} 
+              <CurrencyValue value={balances?.caixabank || 0} /> 
               <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.35rem', fontSize: '0.75rem' }}>
-                (Disp: {formatCurrency(dispCaixa)})
+                (Disp: <CurrencyValue value={dispCaixa} />)
               </span>
             </span>
           </div>
@@ -217,21 +218,21 @@ export default function ExpensesList() {
           <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
             <span style={{ fontWeight: 600, color: 'var(--ing)' }}>ING Nómina</span>
             <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-              {formatCurrency(balances?.ing_nomina || 0)} 
+              <CurrencyValue value={balances?.ing_nomina || 0} /> 
               <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.35rem', fontSize: '0.75rem' }}>
-                (Disp: {formatCurrency(dispING)})
+                (Disp: <CurrencyValue value={dispING} />)
               </span>
             </span>
           </div>
           <div style={{ width: '1px', height: '22px', background: 'var(--border)' }} />
           <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
             <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>ING Naranja</span>
-            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{formatCurrency(balances?.ing_naranja || 0)}</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}><CurrencyValue value={balances?.ing_naranja || 0} /></span>
           </div>
           <div style={{ width: '1px', height: '22px', background: 'var(--border)' }} />
           <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.825rem' }}>
             <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Hucha</span>
-            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{formatCurrency(balances?.hucha || 0)}</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}><CurrencyValue value={balances?.hucha || 0} /></span>
           </div>
         </div>
       </div>
@@ -355,7 +356,7 @@ export default function ExpensesList() {
                       <>
                         <td style={{ fontWeight: 600 }}>{expense.dia}</td>
                         <td>{expense.concepto}</td>
-                        <td>{formatCurrency(expense.importe)}</td>
+                        <td><CurrencyValue value={expense.importe} /></td>
                         <td>
                           <select 
                             className="input" 

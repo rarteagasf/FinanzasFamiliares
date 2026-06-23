@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import Dashboard from './components/Dashboard';
 import ExpensesList from './components/ExpensesList';
 import PlanningView from './components/PlanningView';
-import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Sun, Moon, Download, Upload, RotateCcw } from 'lucide-react';
+import AIChat from './components/AIChat';
+import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Sun, Moon, Download, Upload, RotateCcw, MessageSquare } from 'lucide-react';
 import { useStore } from './store/useStore';
 import { Toaster, toast } from 'sonner';
 import { globalStyles } from './stitches/globalStyles';
@@ -223,6 +224,13 @@ function App() {
               <CalendarDays size={18} />
               <span>Planificación</span>
             </button>
+            <button
+              className={activeTab === 'aichat' ? 'active' : ''}
+              onClick={() => setActiveTab('aichat')}
+            >
+              <MessageSquare size={18} />
+              <span>Chat IA</span>
+            </button>
           </div>
         </div>
       </header>
@@ -231,6 +239,7 @@ function App() {
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'expenses' && <ExpensesList />}
         {activeTab === 'planning' && <PlanningView />}
+        {activeTab === 'aichat' && <AIChat />}
       </main>
 
       {/* Modal Cierre de Mes */}

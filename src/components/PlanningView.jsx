@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate } from '../utils';
 import { Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
+import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
@@ -207,15 +208,15 @@ export default function PlanningView() {
                     ) : (
                       <>
                         <td className="fw-600">{loan.entidad}</td>
-                        <td>{formatCurrency(loan.capital_inicial)}</td>
-                        <td className="hide-tablet">{formatCurrency(loan.total_a_pagar || 0)}</td>
+                        <td><CurrencyValue value={loan.capital_inicial} /></td>
+                        <td className="hide-tablet"><CurrencyValue value={loan.total_a_pagar || 0} /></td>
                         <td className="hide-tablet">{formatShortDate(loan.fecha_inicial)}</td>
                         <td className="hide-tablet">{formatShortDate(loan.fecha_final)}</td>
                         <td>{formatNumber(loan.cuotas)}</td>
                         <td className="hide-tablet">{formatNumber(loan.interes || 0, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</td>
-                        <td>{formatCurrency(loan.cuota)}</td>
+                        <td><CurrencyValue value={loan.cuota} /></td>
                         <td>{formatNumber(loan.faltan)}</td>
-                        <td className="fw-600">{formatCurrency(loan.pendiente)}</td>
+                        <td className="fw-600"><CurrencyValue value={loan.pendiente} /></td>
                         <td className="td-actions">
                           <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                             <button className="btn" style={{ padding: '0.25rem', background: 'transparent' }} title="Editar Inline" onClick={() => startLoanEdit(loan)}>
@@ -233,15 +234,15 @@ export default function PlanningView() {
               })}
               <tr style={{ background: 'var(--table-total-bg)', fontWeight: 700 }}>
                 <td>TOTAL</td>
-                <td>{formatCurrency(totalPrestamosCapital)}</td>
-                <td className="hide-tablet">{formatCurrency(totalPrestamosTotal)}</td>
+                <td><CurrencyValue value={totalPrestamosCapital} /></td>
+                <td className="hide-tablet"><CurrencyValue value={totalPrestamosTotal} /></td>
                 <td className="hide-tablet"></td>
                 <td className="hide-tablet"></td>
                 <td></td>
                 <td className="hide-tablet"></td>
-                <td>{formatCurrency(totalPrestamosCuota)}</td>
+                <td><CurrencyValue value={totalPrestamosCuota} /></td>
                 <td></td>
-                <td>{formatCurrency(totalPrestamosPendiente)}</td>
+                <td><CurrencyValue value={totalPrestamosPendiente} /></td>
                 <td></td>
               </tr>
             </tbody>
@@ -291,10 +292,10 @@ export default function PlanningView() {
                   ) : (
                     <>
                       <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
-                      <td>{formatCurrency(card.credito)}</td>
-                      <td>{formatCurrency(card.cuota)}</td>
-                      <td style={{ color: 'var(--danger)', fontWeight: 600 }}>{formatCurrency(Math.abs(card.pendiente))}</td>
-                      <td style={{ color: 'var(--success)', fontWeight: 600 }}>{formatCurrency(card.disponible)}</td>
+                      <td><CurrencyValue value={card.credito} /></td>
+                      <td><CurrencyValue value={card.cuota} /></td>
+                      <td style={{ color: 'var(--danger)', fontWeight: 600 }}><CurrencyValue value={Math.abs(card.pendiente)} /></td>
+                      <td style={{ color: 'var(--success)', fontWeight: 600 }}><CurrencyValue value={card.disponible} /></td>
                       <td className="td-actions">
                         <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                           <button className="btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={() => startCardEdit(card)}>
@@ -311,10 +312,10 @@ export default function PlanningView() {
               )})}
               <tr style={{ background: 'var(--table-total-bg)', fontWeight: 700 }}>
                 <td>TOTAL</td>
-                <td>{formatCurrency(totalTarjetasCredito)}</td>
-                <td>{formatCurrency(totalTarjetasCuota)}</td>
-                <td style={{ color: 'var(--danger)' }}>{formatCurrency(totalTarjetasPendiente)}</td>
-                <td style={{ color: 'var(--success)' }}>{formatCurrency(totalTarjetasDisponible)}</td>
+                <td><CurrencyValue value={totalTarjetasCredito} /></td>
+                <td><CurrencyValue value={totalTarjetasCuota} /></td>
+                <td style={{ color: 'var(--danger)' }}><CurrencyValue value={totalTarjetasPendiente} /></td>
+                <td style={{ color: 'var(--success)' }}><CurrencyValue value={totalTarjetasDisponible} /></td>
                 <td></td>
               </tr>
             </tbody>
