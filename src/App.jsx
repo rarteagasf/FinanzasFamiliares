@@ -3,7 +3,8 @@ import Dashboard from './components/Dashboard';
 import ExpensesList from './components/ExpensesList';
 import PlanningView from './components/PlanningView';
 import AIChat from './components/AIChat';
-import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Sun, Moon, Download, Upload, RotateCcw, MessageSquare } from 'lucide-react';
+import RemindersView from './components/RemindersView';
+import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Sun, Moon, Download, Upload, RotateCcw, MessageSquare, Bell } from 'lucide-react';
 import { useStore } from './store/useStore';
 import { Toaster, toast } from 'sonner';
 import { globalStyles } from './stitches/globalStyles';
@@ -35,8 +36,9 @@ const getNextMonthName = (currentName) => {
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { months, selectedMonthId, fetchInitialData, fetchMonthData, loading, theme, toggleTheme, exportAllData, importAllData, closeAndCreateMonth, revertMonthClose } = useStore();
+  const { months, selectedMonthId, fetchInitialData, fetchMonthData, loading, theme, toggleTheme, exportAllData, importAllData, closeAndCreateMonth, revertMonthClose, reminders } = useStore();
   const fileInputRef = useRef(null);
+  const [hasNotifiedOverdue, setHasNotifiedOverdue] = useState(false);
 
   // Close/Create Month Modal States
   const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
@@ -51,6 +53,25 @@ function App() {
     globalStyles();
     fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    if (!loading && !hasNotifiedOverdue) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const overdueCount = reminders.filter(r => !r.completado && r.fecha_limite && r.fecha_limite < todayStr).length;
+      if (overdueCount > 0) {
+        toast.warning(`Tienes ${overdueCount} recordatorio(s) pendiente(s) y vencido(s).`, {
+          duration: 6000,
+          action: {
+            label: 'Ver',
+            onClick: () => setActiveTab('reminders')
+          }
+        });
+      }
+      setHasNotifiedOverdue(true);
+    }
+  }, [loading, reminders, hasNotifiedOverdue]);
+
+  const pendingRemindersCount = reminders ? reminders.filter(r => !r.completado).length : 0;
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -231,6 +252,34 @@ function App() {
               <MessageSquare size={18} />
               <span>Chat IA</span>
             </button>
+            <button
+              className={activeTab === 'reminders' ? 'active' : ''}
+              onClick={() => setActiveTab('reminders')}
+              style={{ position: 'relative' }}
+            >
+              <Bell size={18} />
+              <span>Recordatorios</span>
+              {pendingRemindersCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: 'var(--danger)',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.65rem',
+                  fontWeight: 'bold',
+                  boxShadow: '0 0 0 2px var(--bg-card)'
+                }}>
+                  {pendingRemindersCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -240,6 +289,7 @@ function App() {
         {activeTab === 'expenses' && <ExpensesList />}
         {activeTab === 'planning' && <PlanningView />}
         {activeTab === 'aichat' && <AIChat />}
+        {activeTab === 'reminders' && <RemindersView />}
       </main>
 
       {/* Modal Cierre de Mes */}

@@ -28,6 +28,7 @@ export const useStore = create((set, get) => ({
     ing_nomina: 0,
     ing_naranja: 0
   },
+  reminders: [],
   
   loading: false,
 
@@ -44,13 +45,15 @@ export const useStore = create((set, get) => ({
     // Fetch global data
     const { data: loansData } = await supabase.from('loans').select('*');
     const { data: cardsData } = await supabase.from('cards').select('*');
+    const { data: remindersData } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
     
     set({ 
       months: monthsData || [], 
       entities: entitiesData || [],
       selectedMonthId: activeMonth?.id || null,
       loans: loansData || [],
-      cards: cardsData || []
+      cards: cardsData || [],
+      reminders: remindersData || []
     });
 
     if (activeMonth) {
@@ -206,6 +209,40 @@ export const useStore = create((set, get) => ({
     set(state => ({ loans: state.loans.filter(l => l.id !== id) }));
     const { error } = await supabase.from('loans').delete().eq('id', id);
     if (error) set({ loans: prev });
+    return { error };
+  },
+
+  // CRUD REMINDERS
+  addReminder: async (reminder) => {
+    const { data, error } = await supabase.from('reminders').insert(reminder).select().single();
+    if (!error && data) {
+      set(state => ({ reminders: [data, ...state.reminders] }));
+    }
+    return { data, error };
+  },
+
+  updateReminder: async (id, updates) => {
+    const prevReminders = get().reminders;
+    set(state => ({
+      reminders: state.reminders.map(r => r.id === id ? { ...r, ...updates } : r)
+    }));
+
+    const { error } = await supabase.from('reminders').update(updates).eq('id', id);
+    if (error) {
+      set({ reminders: prevReminders });
+    }
+    return { error };
+  },
+
+  deleteReminder: async (id) => {
+    const prevReminders = get().reminders;
+    set(state => ({
+      reminders: state.reminders.filter(r => r.id !== id)
+    }));
+    const { error } = await supabase.from('reminders').delete().eq('id', id);
+    if (error) {
+      set({ reminders: prevReminders });
+    }
     return { error };
   },
 
@@ -365,17 +402,19 @@ export const useStore = create((set, get) => ({
     const { data: balances } = await supabase.from('balances').select('*');
     const { data: loans } = await supabase.from('loans').select('*');
     const { data: cards } = await supabase.from('cards').select('*');
-    return { months, entities, expenses, balances, loans, cards };
+    const { data: reminders } = await supabase.from('reminders').select('*');
+    return { months, entities, expenses, balances, loans, cards, reminders };
   },
 
   importAllData: async (data) => {
-    const { months, entities, expenses, balances, loans, cards } = data;
+    const { months, entities, expenses, balances, loans, cards, reminders } = data;
 
     // Delete in FK-safe order
     await supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('balances').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('cards').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('loans').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('reminders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('months').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('entities').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
@@ -386,6 +425,7 @@ export const useStore = create((set, get) => ({
     if (cards?.length) await supabase.from('cards').insert(cards);
     if (balances?.length) await supabase.from('balances').insert(balances);
     if (expenses?.length) await supabase.from('expenses').insert(expenses);
+    if (reminders?.length) await supabase.from('reminders').insert(reminders);
 
     // Reload all data
     await get().fetchInitialData();
