@@ -20,6 +20,7 @@ export const useStore = create((set, get) => ({
   
   entities: [],
   expenses: [],
+  prevPendingExpenses: [],
   loans: [],
   cards: [],
   balances: {
@@ -77,8 +78,26 @@ export const useStore = create((set, get) => ({
     const { data: expensesData } = await supabase.from('expenses').select('*').eq('month_id', monthId);
     const { data: balancesData } = await supabase.from('balances').select('*').eq('month_id', monthId).single();
     
+    // Fetch previous month's unpaid expenses
+    const { months } = get();
+    const sorted = [...months].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const currentIndex = sorted.findIndex(m => m.id === monthId);
+    let prevExpensesData = [];
+    if (currentIndex > 0) {
+      const prevMonth = sorted[currentIndex - 1];
+      const { data: prevData } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('month_id', prevMonth.id)
+        .eq('estado', 'X'); // Only unpaid
+      if (prevData) {
+        prevExpensesData = prevData.map(e => ({ ...e, isFromPreviousMonth: true, originalMonthName: prevMonth.name }));
+      }
+    }
+    
     set({ 
       expenses: expensesData || [],
+      prevPendingExpenses: prevExpensesData,
       balances: balancesData || { caixabank: 0, hucha: 0, ing_nomina: 0, ing_naranja: 0 },
       loading: false
     });

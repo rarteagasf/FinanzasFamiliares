@@ -5,7 +5,7 @@ import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } f
 import CurrencyValue from './ui/CurrencyValue';
 
 export default function Dashboard() {
-  const { balances, expenses, cards, entities, updateBalance } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards, entities, updateBalance } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -14,9 +14,15 @@ export default function Dashboard() {
   // Calcular gastos pendientes totales
   const totalPendienteCaixa = expenses
     .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + prevPendingExpenses
+    .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
     .reduce((acc, curr) => acc + curr.importe, 0);
     
   const totalPendienteING = expenses
+    .filter(e => e.estado === 'X' && e.entidad === 'ING')
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + prevPendingExpenses
     .filter(e => e.estado === 'X' && e.entidad === 'ING')
     .reduce((acc, curr) => acc + curr.importe, 0);
 
@@ -28,7 +34,14 @@ export default function Dashboard() {
   const totalDisponible = dispCaixa + dispING + balances.ing_naranja + balances.hucha;
 
   // Gastos Pendientes para desglose
-  const pendingExpenses = expenses.filter(e => e.estado === 'X').sort((a,b) => a.dia - b.dia);
+  const pendingExpenses = [
+    ...expenses.filter(e => e.estado === 'X'),
+    ...prevPendingExpenses
+  ].sort((a, b) => {
+    if (a.isFromPreviousMonth && !b.isFromPreviousMonth) return -1;
+    if (!a.isFromPreviousMonth && b.isFromPreviousMonth) return 1;
+    return a.dia - b.dia;
+  });
   const groupedPendientes = {};
   
   // Initialize with known entities to maintain order
@@ -178,7 +191,9 @@ export default function Dashboard() {
                       <tbody>
                         {lista.map(expense => (
                           <tr key={expense.id}>
-                            <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{expense.dia}</td>
+                            <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                              {expense.isFromPreviousMonth ? `${expense.dia} (Mes Ant.)` : expense.dia}
+                            </td>
                             <td style={{ padding: '0.5rem' }}>{expense.concepto}</td>
                             <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>
                               <CurrencyValue value={expense.importe} />
