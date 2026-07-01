@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createClient } from '@supabase/supabase-js';
+import { getLinkInfo } from '../utils';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -324,6 +325,29 @@ export const useStore = create((set, get) => ({
       }
 
       if (currentExpenses && currentExpenses.length > 0) {
+        // Update loans and cards baseline in database for any paid linked expenses
+        const { loans, cards } = get();
+        for (const exp of currentExpenses) {
+          if (exp.estado === 'P') {
+            const { loanId, cardId } = getLinkInfo(exp.concepto);
+            if (loanId) {
+              const loan = loans.find(l => l.id === loanId);
+              if (loan) {
+                const nextFaltan = Math.max(0, loan.faltan - 1);
+                const nextPendiente = Math.max(0, loan.pendiente - loan.cuota);
+                await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', loanId);
+              }
+            } else if (cardId) {
+              const card = cards.find(c => c.id === cardId);
+              if (card) {
+                const nextPendiente = Math.max(0, card.pendiente - exp.importe);
+                const nextDisponible = card.credito - nextPendiente;
+                await supabase.from('cards').update({ pendiente: nextPendiente, disponible: nextDisponible }).eq('id', cardId);
+              }
+            }
+          }
+        }
+
         // Prepare cloned expenses without their original id (so database generates new UUID)
         const clonedExpenses = currentExpenses.map(exp => ({
           month_id: newMonth.id,

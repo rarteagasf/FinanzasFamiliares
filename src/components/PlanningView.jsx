@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate, getLinkInfo } from '../utils';
 import { Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function PlanningView() {
-  const { loans, cards, addLoan, updateLoan, deleteLoan, addCard, updateCard, deleteCard } = useStore();
+  const { loans, cards, expenses, addLoan, updateLoan, deleteLoan, addCard, updateCard, deleteCard } = useStore();
 
   // Modals state for NEW items only
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
@@ -24,17 +24,71 @@ export default function PlanningView() {
   const [editingCardId, setEditingCardId] = useState(null);
   const [inlineCardForm, setInlineCardForm] = useState({});
 
+  // Dynamic loan values (considering payments made in the current month)
+  const dynamicLoans = loans.map(loan => {
+    const paidExpense = expenses.find(e => {
+      if (e.estado !== 'P') return false;
+      const { loanId } = getLinkInfo(e.concepto);
+      return loanId === loan.id;
+    });
+
+    if (paidExpense) {
+      const nextFaltan = Math.max(0, loan.faltan - 1);
+      const nextPendiente = Math.max(0, loan.pendiente - loan.cuota);
+      return {
+        ...loan,
+        faltan: nextFaltan,
+        pendiente: nextPendiente,
+        isPaidThisMonth: true,
+      };
+    }
+
+    return {
+      ...loan,
+      isPaidThisMonth: false,
+    };
+  });
+
+  // Dynamic card values (considering payments made in the current month)
+  const dynamicCards = cards.map(card => {
+    const paidAmount = expenses
+      .filter(e => {
+        if (e.estado !== 'P') return false;
+        const { cardId } = getLinkInfo(e.concepto);
+        return cardId === card.id;
+      })
+      .reduce((sum, e) => sum + e.importe, 0);
+
+    if (paidAmount > 0) {
+      const nextPendiente = Math.max(0, card.pendiente - paidAmount);
+      const nextDisponible = card.credito - nextPendiente;
+      return {
+        ...card,
+        pendiente: nextPendiente,
+        disponible: nextDisponible,
+        isPaidThisMonth: true,
+        paidAmount,
+      };
+    }
+
+    return {
+      ...card,
+      isPaidThisMonth: false,
+      paidAmount: 0,
+    };
+  });
+
   // Totals Loans
-  const totalPrestamosCapital = loans.reduce((acc, curr) => acc + curr.capital_inicial, 0);
-  const totalPrestamosTotal = loans.reduce((acc, curr) => acc + (curr.total_a_pagar || 0), 0);
-  const totalPrestamosCuota = loans.reduce((acc, curr) => acc + curr.cuota, 0);
-  const totalPrestamosPendiente = loans.reduce((acc, curr) => acc + curr.pendiente, 0);
+  const totalPrestamosCapital = dynamicLoans.reduce((acc, curr) => acc + curr.capital_inicial, 0);
+  const totalPrestamosTotal = dynamicLoans.reduce((acc, curr) => acc + (curr.total_a_pagar || 0), 0);
+  const totalPrestamosCuota = dynamicLoans.reduce((acc, curr) => acc + curr.cuota, 0);
+  const totalPrestamosPendiente = dynamicLoans.reduce((acc, curr) => acc + curr.pendiente, 0);
 
   // Totals Cards
-  const totalTarjetasCredito = cards.reduce((acc, curr) => acc + curr.credito, 0);
-  const totalTarjetasCuota = cards.reduce((acc, curr) => acc + curr.cuota, 0);
-  const totalTarjetasPendiente = cards.reduce((acc, curr) => acc + Math.abs(curr.pendiente), 0);
-  const totalTarjetasDisponible = cards.reduce((acc, curr) => acc + curr.disponible, 0);
+  const totalTarjetasCredito = dynamicCards.reduce((acc, curr) => acc + curr.credito, 0);
+  const totalTarjetasCuota = dynamicCards.reduce((acc, curr) => acc + curr.cuota, 0);
+  const totalTarjetasPendiente = dynamicCards.reduce((acc, curr) => acc + Math.abs(curr.pendiente), 0);
+  const totalTarjetasDisponible = dynamicCards.reduce((acc, curr) => acc + curr.disponible, 0);
 
   // --- LOANS ADD ---
   const openLoanModal = () => {
@@ -57,14 +111,15 @@ export default function PlanningView() {
 
   // --- LOANS INLINE EDITING ---
   const startLoanEdit = (loan) => {
-    setEditingLoanId(loan.id);
+    const baselineLoan = loans.find(l => l.id === loan.id) || loan;
+    setEditingLoanId(baselineLoan.id);
     setInlineLoanForm({
-      ...loan,
-      capital_inicial: formatInputDecimal(loan.capital_inicial),
-      total_a_pagar: formatInputDecimal(loan.total_a_pagar || 0),
-      interes: formatInputDecimal(loan.interes || 0),
-      cuota: formatInputDecimal(loan.cuota),
-      pendiente: formatInputDecimal(loan.pendiente),
+      ...baselineLoan,
+      capital_inicial: formatInputDecimal(baselineLoan.capital_inicial),
+      total_a_pagar: formatInputDecimal(baselineLoan.total_a_pagar || 0),
+      interes: formatInputDecimal(baselineLoan.interes || 0),
+      cuota: formatInputDecimal(baselineLoan.cuota),
+      pendiente: formatInputDecimal(baselineLoan.pendiente),
     });
   };
   const saveInlineLoan = async () => {
@@ -117,13 +172,14 @@ export default function PlanningView() {
 
   // --- CARDS INLINE EDITING ---
   const startCardEdit = (card) => {
-    setEditingCardId(card.id);
+    const baselineCard = cards.find(c => c.id === card.id) || card;
+    setEditingCardId(baselineCard.id);
     setInlineCardForm({
-      ...card,
-      pendiente: formatInputDecimal(Math.abs(card.pendiente)),
-      credito: formatInputDecimal(card.credito),
-      cuota: formatInputDecimal(card.cuota),
-      disponible: formatInputDecimal(card.disponible),
+      ...baselineCard,
+      pendiente: formatInputDecimal(Math.abs(baselineCard.pendiente)),
+      credito: formatInputDecimal(baselineCard.credito),
+      cuota: formatInputDecimal(baselineCard.cuota),
+      disponible: formatInputDecimal(baselineCard.disponible),
     });
   };
 
@@ -182,7 +238,7 @@ export default function PlanningView() {
               </tr>
             </thead>
             <tbody>
-              {loans.map(loan => {
+              {dynamicLoans.map(loan => {
                 const isEditing = editingLoanId === loan.id;
                 return (
                   <tr key={loan.id} onDoubleClick={() => !isEditing && startLoanEdit(loan)}>
@@ -207,7 +263,24 @@ export default function PlanningView() {
                       </>
                     ) : (
                       <>
-                        <td className="fw-600">{loan.entidad}</td>
+                        <td className="fw-600">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            {loan.entidad}
+                            {loan.isPaidThisMonth && (
+                              <span style={{
+                                fontSize: '0.65rem',
+                                padding: '0.1rem 0.4rem',
+                                background: 'var(--badge-p-bg)',
+                                color: 'var(--success)',
+                                borderRadius: '9999px',
+                                fontWeight: 'bold',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Pagado
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td><CurrencyValue value={loan.capital_inicial} /></td>
                         <td className="hide-tablet"><CurrencyValue value={loan.total_a_pagar || 0} /></td>
                         <td className="hide-tablet">{formatShortDate(loan.fecha_inicial)}</td>
@@ -271,7 +344,7 @@ export default function PlanningView() {
               </tr>
             </thead>
             <tbody>
-              {cards.map(card => {
+              {dynamicCards.map(card => {
                 const isEditing = editingCardId === card.id;
                 return (
                 <tr key={card.id} onDoubleClick={() => !isEditing && startCardEdit(card)}>
@@ -291,7 +364,24 @@ export default function PlanningView() {
                     </>
                   ) : (
                     <>
-                      <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          {card.tarjeta}
+                          {card.isPaidThisMonth && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              padding: '0.1rem 0.4rem',
+                              background: 'var(--badge-p-bg)',
+                              color: 'var(--success)',
+                              borderRadius: '9999px',
+                              fontWeight: 'bold',
+                              whiteSpace: 'nowrap'
+                            }} title={`Se ha pagado un total de ${card.paidAmount.toFixed(2)} €`}>
+                              Pagado
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td><CurrencyValue value={card.credito} /></td>
                       <td><CurrencyValue value={card.cuota} /></td>
                       <td style={{ color: 'var(--danger)', fontWeight: 600 }}><CurrencyValue value={Math.abs(card.pendiente)} /></td>

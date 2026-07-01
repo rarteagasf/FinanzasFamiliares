@@ -67,3 +67,35 @@ export function onNumKeyDown(e) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }
+
+export function getLinkInfo(concepto) {
+  if (!concepto) return { concept: '', loanId: null, cardId: null };
+  const loanMatch = concepto.match(/\s*\[loan:([^\]]+)\]/);
+  if (loanMatch) {
+    return {
+      concept: concepto.replace(/\s*\[loan:([^\]]+)\]/, '').trim(),
+      loanId: loanMatch[1],
+      cardId: null
+    };
+  }
+  const cardMatch = concepto.match(/\s*\[card:([^\]]+)\]/);
+  if (cardMatch) {
+    return {
+      concept: concepto.replace(/\s*\[card:([^\]]+)\]/, '').trim(),
+      loanId: null,
+      cardId: cardMatch[1]
+    };
+  }
+  return { concept: concepto, loanId: null, cardId: null };
+}
+
+export function setLinkInfo(concept, loanId, cardId) {
+  let clean = concept ? String(concept).replace(/\s*\[(loan|card):[^\]]+\]/g, '').trim() : '';
+  if (loanId) {
+    clean += ` [loan:${loanId}]`;
+  } else if (cardId) {
+    clean += ` [card:${cardId}]`;
+  }
+  return clean;
+}
+

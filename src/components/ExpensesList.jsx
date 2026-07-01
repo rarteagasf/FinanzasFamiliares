@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, getLinkInfo, setLinkInfo } from '../utils';
 import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function ExpensesList() {
-  const { expenses, entities, balances, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity } = useStore();
+  const { expenses, entities, balances, loans, cards, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity } = useStore();
   
   const [sortBy, setSortBy] = useState('dia'); // 'dia' | 'entidad'
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' | 'desc'
@@ -21,7 +21,7 @@ export default function ExpensesList() {
   const [isEntityModalOpen, setIsEntityModalOpen] = useState(false);
   const [newEntityName, setNewEntityName] = useState('');
 
-  const [formData, setFormData] = useState({ dia: 1, concepto: '', importe: 0, entidad: '', estado: 'X' });
+  const [formData, setFormData] = useState({ dia: 1, concepto: '', importe: 0, entidad: '', estado: 'X', loanId: '', cardId: '' });
 
   // Inline Editing State
   const [inlineEditingId, setInlineEditingId] = useState(null);
@@ -72,30 +72,44 @@ export default function ExpensesList() {
   const openExpenseModal = (expense = null) => {
     if (expense) {
       setEditingExpense(expense);
-      setFormData({ ...expense });
+      const { concept, loanId, cardId } = getLinkInfo(expense.concepto);
+      setFormData({
+        ...expense,
+        concepto: concept,
+        loanId: loanId || '',
+        cardId: cardId || ''
+      });
     } else {
       setEditingExpense(null);
-      setFormData({ dia: 1, concepto: '', importe: 0, entidad: entities[0]?.name || '', estado: 'X' });
+      setFormData({ dia: 1, concepto: '', importe: 0, entidad: entities[0]?.name || '', estado: 'X', loanId: '', cardId: '' });
     }
     setIsExpenseModalOpen(true);
   };
 
   const saveExpense = async (e) => {
     e.preventDefault();
+    const finalConcept = setLinkInfo(formData.concepto, formData.loanId, formData.cardId);
+    const saveData = {
+      dia: formData.dia,
+      concepto: finalConcept,
+      importe: formData.importe,
+      entidad: formData.entidad,
+      estado: formData.estado
+    };
     if (editingExpense) {
       setConfirmState({
         isOpen: true,
         title: 'Confirmar actualización',
         message: `¿Estás seguro de guardar los cambios para el gasto "${formData.concepto}"?`,
         onConfirm: async () => {
-          const { error } = await updateExpense(editingExpense.id, formData);
+          const { error } = await updateExpense(editingExpense.id, saveData);
           if (!error) toast.success('Gasto actualizado');
           else toast.error('Error al actualizar');
           setIsExpenseModalOpen(false);
         }
       });
     } else {
-      const { error } = await addExpense(formData);
+      const { error } = await addExpense(saveData);
       if (!error) toast.success('Gasto añadido');
       else toast.error('Error al añadir');
       setIsExpenseModalOpen(false);
@@ -104,10 +118,11 @@ export default function ExpensesList() {
 
   const handleDelete = async (id) => {
     const expense = expenses.find(e => e.id === id);
+    const { concept } = getLinkInfo(expense?.concepto);
     setConfirmState({
       isOpen: true,
       title: 'Confirmar eliminación',
-      message: `¿Estás seguro de eliminar el gasto "${expense?.concepto || ''}"?`,
+      message: `¿Estás seguro de eliminar el gasto "${concept || ''}"?`,
       onConfirm: async () => {
         const { error } = await deleteExpense(id);
         if (!error) toast.success('Gasto eliminado');
@@ -142,7 +157,14 @@ export default function ExpensesList() {
   // --- Inline Editing Logic ---
   const startInlineEditing = (expense) => {
     setInlineEditingId(expense.id);
-    setInlineForm({ ...expense, importe: formatInputDecimal(expense.importe) });
+    const { concept, loanId, cardId } = getLinkInfo(expense.concepto);
+    setInlineForm({
+      ...expense,
+      concepto: concept,
+      loanId: loanId || '',
+      cardId: cardId || '',
+      importe: formatInputDecimal(expense.importe)
+    });
   };
 
   const cancelInlineEditing = () => {
@@ -151,9 +173,11 @@ export default function ExpensesList() {
   };
 
   const saveInlineEditing = async () => {
+    const finalConcept = setLinkInfo(inlineForm.concepto, inlineForm.loanId, inlineForm.cardId);
     const saveData = {
       ...inlineForm,
       dia: parseIntNum(inlineForm.dia),
+      concepto: finalConcept,
       importe: parseNum(inlineForm.importe),
     };
     setConfirmState({
@@ -355,7 +379,7 @@ export default function ExpensesList() {
                     ) : (
                       <>
                         <td style={{ fontWeight: 600 }}>{expense.dia}</td>
-                        <td>{expense.concepto}</td>
+                        <td>{getLinkInfo(expense.concepto).concept}</td>
                         <td><CurrencyValue value={expense.importe} /></td>
                         <td>
                           <select 
@@ -365,10 +389,11 @@ export default function ExpensesList() {
                             onChange={(e) => {
                               const newValue = e.target.value;
                               const oldValue = expense.entidad;
+                              const cleanConceptName = getLinkInfo(expense.concepto).concept;
                               setConfirmState({
                                 isOpen: true,
                                 title: 'Confirmar cambio de entidad',
-                                message: `¿Estás seguro de cambiar la entidad de "${expense.concepto}" de "${oldValue}" a "${newValue}"?`,
+                                message: `¿Estás seguro de cambiar la entidad de "${cleanConceptName}" de "${oldValue}" a "${newValue}"?`,
                                 onConfirm: () => updateExpense(expense.id, { entidad: newValue }),
                               });
                             }}
@@ -393,11 +418,12 @@ export default function ExpensesList() {
                             onChange={(e) => {
                               const newValue = e.target.value;
                               const oldValue = expense.estado;
+                              const cleanConceptName = getLinkInfo(expense.concepto).concept;
                               const getEstadoLabel = (est) => est === 'P' ? 'Pagado' : est === 'X' ? 'Pendiente' : 'No aplica';
                               setConfirmState({
                                 isOpen: true,
                                 title: 'Confirmar cambio de estado',
-                                message: `¿Estás seguro de cambiar el estado de "${expense.concepto}" de "${getEstadoLabel(oldValue)}" a "${getEstadoLabel(newValue)}"?`,
+                                message: `¿Estás seguro de cambiar el estado de "${cleanConceptName}" de "${getEstadoLabel(oldValue)}" a "${getEstadoLabel(newValue)}"?`,
                                 onConfirm: () => updateExpense(expense.id, { estado: newValue }),
                               });
                             }}
@@ -438,6 +464,23 @@ export default function ExpensesList() {
           <div className="form-group"><label>Importe (€)</label><input type="text" inputMode="decimal" className="input" value={formatInputDecimal(formData.importe)} onChange={e => setFormData({...formData, importe: parseNum(normalizeDecimalInput(e.target.value))})} required /></div>
           <div className="form-group"><label>Entidad</label><select className="input" value={formData.entidad} onChange={e => setFormData({...formData, entidad: e.target.value})} required>{entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}</select></div>
           <div className="form-group"><label>Estado Inicial</label><select className="input" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})}><option value="X">Pendiente</option><option value="P">Pagado</option><option value="-">No aplica</option></select></div>
+          
+          <div className="form-group">
+            <label>Vincular a Préstamo</label>
+            <select className="input" value={formData.loanId || ''} onChange={e => setFormData({ ...formData, loanId: e.target.value, cardId: '' })}>
+              <option value="">Ninguno</option>
+              {loans.map(l => <option key={l.id} value={l.id}>{l.entidad} (Cuota: {l.cuota} €)</option>)}
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label>Vincular a Tarjeta</label>
+            <select className="input" value={formData.cardId || ''} onChange={e => setFormData({ ...formData, cardId: e.target.value, loanId: '' })}>
+              <option value="">Ninguna</option>
+              {cards.map(c => <option key={c.id} value={c.id}>{c.tarjeta} (Pendiente: {c.pendiente} €)</option>)}
+            </select>
+          </div>
+
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Guardar Gasto</button>
         </form>
       </Modal>

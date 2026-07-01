@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { ArrowDownCircle, Pencil } from 'lucide-react';
-import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal } from '../utils';
+import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, getLinkInfo } from '../utils';
 import CurrencyValue from './ui/CurrencyValue';
 
 export default function Dashboard() {
@@ -194,7 +194,7 @@ export default function Dashboard() {
                             <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                               {expense.isFromPreviousMonth ? `${expense.dia} (Mes Ant.)` : expense.dia}
                             </td>
-                            <td style={{ padding: '0.5rem' }}>{expense.concepto}</td>
+                            <td style={{ padding: '0.5rem' }}>{getLinkInfo(expense.concepto).concept}</td>
                             <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>
                               <CurrencyValue value={expense.importe} />
                             </td>
