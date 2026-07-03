@@ -122,7 +122,8 @@ export const useStore = create((set, get) => ({
       expenses: state.expenses.map(e => e.id === id ? { ...e, ...updates } : e),
     }));
 
-    const { error } = await supabase.from('expenses').update(updates).eq('id', id);
+    const { id: _, created_at: __, month_id: ___, ...cleanUpdates } = updates;
+    const { error } = await supabase.from('expenses').update(cleanUpdates).eq('id', id);
     if (error) {
       set({ expenses: prevExpenses }); // Revert on error
     }
@@ -169,7 +170,8 @@ export const useStore = create((set, get) => ({
   updateEntity: async (id, updates) => {
     const prev = get().entities;
     set(state => ({ entities: state.entities.map(e => e.id === id ? { ...e, ...updates } : e) }));
-    const { error } = await supabase.from('entities').update(updates).eq('id', id);
+    const { id: _, created_at: __, ...cleanUpdates } = updates;
+    const { error } = await supabase.from('entities').update(cleanUpdates).eq('id', id);
     if (error) set({ entities: prev });
     return { error };
   },
@@ -194,7 +196,8 @@ export const useStore = create((set, get) => ({
   updateCard: async (id, updates) => {
     const prev = get().cards;
     set(state => ({ cards: state.cards.map(c => c.id === id ? { ...c, ...updates } : c) }));
-    const { error } = await supabase.from('cards').update(updates).eq('id', id);
+    const { id: _, created_at: __, ...cleanUpdates } = updates;
+    const { error } = await supabase.from('cards').update(cleanUpdates).eq('id', id);
     if (error) set({ cards: prev });
     return { error };
   },
@@ -219,7 +222,8 @@ export const useStore = create((set, get) => ({
   updateLoan: async (id, updates) => {
     const prev = get().loans;
     set(state => ({ loans: state.loans.map(l => l.id === id ? { ...l, ...updates } : l) }));
-    const { error } = await supabase.from('loans').update(updates).eq('id', id);
+    const { id: _, created_at: __, ...cleanUpdates } = updates;
+    const { error } = await supabase.from('loans').update(cleanUpdates).eq('id', id);
     if (error) set({ loans: prev });
     return { error };
   },
@@ -247,7 +251,8 @@ export const useStore = create((set, get) => ({
       reminders: state.reminders.map(r => r.id === id ? { ...r, ...updates } : r)
     }));
 
-    const { error } = await supabase.from('reminders').update(updates).eq('id', id);
+    const { id: _, created_at: __, ...cleanUpdates } = updates;
+    const { error } = await supabase.from('reminders').update(cleanUpdates).eq('id', id);
     if (error) {
       set({ reminders: prevReminders });
     }
