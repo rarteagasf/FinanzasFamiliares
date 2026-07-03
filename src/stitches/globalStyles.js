@@ -397,7 +397,7 @@ export const globalStyles = globalCss({
     WebkitOverflowScrolling: 'touch',
     '@media (max-width: 640px)': {
       width: '100%',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
     },
     '& button': {
       background: 'transparent',
