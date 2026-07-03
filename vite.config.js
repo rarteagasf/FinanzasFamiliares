@@ -9,14 +9,14 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg', 'pwa-icon.svg'],
       manifest: {
-        name: 'Finanzas Personales',
+        name: 'Finanzas Familiares',
         short_name: 'Finanzas',
         description: 'Control de gastos familiares',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
         scope: '/',
-        start_url: '/',
+        start_url: '/?utm_source=pwa',
         lang: 'es',
         icons: [
           {
