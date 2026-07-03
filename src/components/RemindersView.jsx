@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { Plus, Trash2, Calendar, CheckSquare, Square, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import Modal from './ui/Modal';
+
 
 export default function RemindersView() {
   const { reminders, addReminder, updateReminder, deleteReminder } = useStore();
@@ -10,6 +12,10 @@ export default function RemindersView() {
   const [texto, setTexto] = useState('');
   const [fechaLimite, setFechaLimite] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Confirmation State
+  const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
   
   // Filter state
   const [filter, setFilter] = useState('pending'); // 'pending' | 'completed' | 'all'
@@ -49,14 +55,23 @@ export default function RemindersView() {
     }
   };
 
-  const handleDelete = async (id) => {
-    const { error } = await deleteReminder(id);
-    if (!error) {
-      toast.success('Recordatorio eliminado');
-    } else {
-      toast.error('Error al eliminar: ' + error.message);
-    }
+  const handleDelete = (id) => {
+    const reminder = reminders.find(r => r.id === id);
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar eliminación',
+      message: `¿Estás seguro de eliminar el recordatorio "${reminder?.texto || ''}"?`,
+      onConfirm: async () => {
+        const { error } = await deleteReminder(id);
+        if (!error) {
+          toast.success('Recordatorio eliminado');
+        } else {
+          toast.error('Error al eliminar: ' + error.message);
+        }
+      }
+    });
   };
+
 
   // Filter reminders
   const filteredReminders = reminders.filter(r => {
@@ -292,6 +307,27 @@ export default function RemindersView() {
           </div>
         </div>
       </div>
+      {/* Modal Confirmación Genérico */}
+      <Modal 
+        isOpen={confirmState.isOpen} 
+        onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} 
+        title={confirmState.title || 'Confirmar Acción'}
+      >
+        <p style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>{confirmState.message}</p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" onClick={() => {
+            confirmState.onConfirm();
+            setConfirmState(prev => ({ ...prev, isOpen: false }));
+          }}>
+            Confirmar
+          </button>
+        </div>
+      </Modal>
+
     </div>
   );
 }
+

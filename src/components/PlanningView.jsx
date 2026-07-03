@@ -24,6 +24,9 @@ export default function PlanningView() {
   const [editingCardId, setEditingCardId] = useState(null);
   const [inlineCardForm, setInlineCardForm] = useState({});
 
+  // Confirmation State
+  const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
   // Dynamic values (considering payments made in the current month)
   const dynamicLoans = getDynamicLoans();
   const dynamicCards = getDynamicCards();
@@ -54,9 +57,18 @@ export default function PlanningView() {
     setIsLoanModalOpen(false);
   };
 
-  const handleLoanDelete = async (id) => {
-    const { error } = await deleteLoan(id);
-    if (!error) toast.success('Préstamo eliminado');
+  const handleLoanDelete = (id) => {
+    const loan = loans.find(l => l.id === id);
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar eliminación',
+      message: `¿Estás seguro de eliminar el préstamo "${loan?.entidad || ''}"?`,
+      onConfirm: async () => {
+        const { error } = await deleteLoan(id);
+        if (!error) toast.success('Préstamo eliminado');
+        else toast.error('Error al eliminar préstamo');
+      }
+    });
   };
 
   // --- LOANS INLINE EDITING ---
@@ -123,9 +135,18 @@ export default function PlanningView() {
     setIsCardModalOpen(false);
   };
 
-  const handleCardDelete = async (id) => {
-    const { error } = await deleteCard(id);
-    if (!error) toast.success('Tarjeta eliminada');
+  const handleCardDelete = (id) => {
+    const card = cards.find(c => c.id === id);
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar eliminación',
+      message: `¿Estás seguro de eliminar la tarjeta "${card?.tarjeta || ''}"?`,
+      onConfirm: async () => {
+        const { error } = await deleteCard(id);
+        if (!error) toast.success('Tarjeta eliminada');
+        else toast.error('Error al eliminar tarjeta');
+      }
+    });
   };
 
   // --- CARDS INLINE EDITING ---
@@ -382,6 +403,26 @@ export default function PlanningView() {
           <div className="form-group"><label>Próximo Recibo (Cuota)</label><input type="text" inputMode="decimal" className="input" value={formatInputDecimal(cardForm.cuota)} onChange={e => handleNewCardChange('cuota', e.target.value)} required /></div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Crear Tarjeta</button>
         </form>
+      </Modal>
+
+      {/* Modal Confirmación Genérico */}
+      <Modal 
+        isOpen={confirmState.isOpen} 
+        onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} 
+        title={confirmState.title || 'Confirmar Acción'}
+      >
+        <p style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>{confirmState.message}</p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" onClick={() => {
+            confirmState.onConfirm();
+            setConfirmState(prev => ({ ...prev, isOpen: false }));
+          }}>
+            Confirmar
+          </button>
+        </div>
       </Modal>
 
     </div>

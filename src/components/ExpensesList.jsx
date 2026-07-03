@@ -149,10 +149,20 @@ export default function ExpensesList() {
     }
   };
 
-  const handleDeleteEntity = async (id) => {
-    const { error } = await deleteEntity(id);
-    if (!error) toast.success('Entidad eliminada');
+  const handleDeleteEntity = (id) => {
+    const ent = entities.find(e => e.id === id);
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar eliminación',
+      message: `¿Estás seguro de eliminar la entidad "${ent?.name || ''}"?`,
+      onConfirm: async () => {
+        const { error } = await deleteEntity(id);
+        if (!error) toast.success('Entidad eliminada');
+        else toast.error('Error al eliminar entidad');
+      }
+    });
   };
+
 
   // --- Inline Editing Logic ---
   const startInlineEditing = (expense) => {
