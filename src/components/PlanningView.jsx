@@ -61,27 +61,35 @@ export default function PlanningView() {
 
   // --- LOANS INLINE EDITING ---
   const startLoanEdit = (loan) => {
-    const baselineLoan = loans.find(l => l.id === loan.id) || loan;
-    setEditingLoanId(baselineLoan.id);
+    setEditingLoanId(loan.id);
     setInlineLoanForm({
-      ...baselineLoan,
-      capital_inicial: formatInputDecimal(baselineLoan.capital_inicial),
-      total_a_pagar: formatInputDecimal(baselineLoan.total_a_pagar || 0),
-      interes: formatInputDecimal(baselineLoan.interes || 0),
-      cuota: formatInputDecimal(baselineLoan.cuota),
-      pendiente: formatInputDecimal(baselineLoan.pendiente),
+      ...loan,
+      capital_inicial: formatInputDecimal(loan.capital_inicial),
+      total_a_pagar: formatInputDecimal(loan.total_a_pagar || 0),
+      interes: formatInputDecimal(loan.interes || 0),
+      cuota: formatInputDecimal(loan.cuota),
+      pendiente: formatInputDecimal(loan.pendiente),
     });
   };
   const saveInlineLoan = async () => {
+    const dynamicLoan = dynamicLoans.find(l => l.id === editingLoanId);
+    let faltanVal = parseIntNum(inlineLoanForm.faltan);
+    let pendienteVal = parseNum(inlineLoanForm.pendiente);
+
+    if (dynamicLoan && dynamicLoan.isPaidThisMonth) {
+      faltanVal = faltanVal + 1;
+      pendienteVal = pendienteVal + dynamicLoan.cuota;
+    }
+
     const saveData = {
       ...inlineLoanForm,
       cuotas: parseIntNum(inlineLoanForm.cuotas),
-      faltan: parseIntNum(inlineLoanForm.faltan),
+      faltan: faltanVal,
       capital_inicial: parseNum(inlineLoanForm.capital_inicial),
       total_a_pagar: parseNum(inlineLoanForm.total_a_pagar),
       interes: parseNum(inlineLoanForm.interes),
       cuota: parseNum(inlineLoanForm.cuota),
-      pendiente: parseNum(inlineLoanForm.pendiente),
+      pendiente: pendienteVal,
     };
     const { error } = await updateLoan(editingLoanId, saveData);
     if (!error) { toast.success('Guardado'); setEditingLoanId(null); }
@@ -122,14 +130,13 @@ export default function PlanningView() {
 
   // --- CARDS INLINE EDITING ---
   const startCardEdit = (card) => {
-    const baselineCard = cards.find(c => c.id === card.id) || card;
-    setEditingCardId(baselineCard.id);
+    setEditingCardId(card.id);
     setInlineCardForm({
-      ...baselineCard,
-      pendiente: formatInputDecimal(Math.abs(baselineCard.pendiente)),
-      credito: formatInputDecimal(baselineCard.credito),
-      cuota: formatInputDecimal(baselineCard.cuota),
-      disponible: formatInputDecimal(baselineCard.disponible),
+      ...card,
+      pendiente: formatInputDecimal(Math.abs(card.pendiente)),
+      credito: formatInputDecimal(card.credito),
+      cuota: formatInputDecimal(card.cuota),
+      disponible: formatInputDecimal(card.disponible),
     });
   };
 
@@ -147,12 +154,21 @@ export default function PlanningView() {
   };
 
   const saveInlineCard = async () => {
+    const dynamicCard = dynamicCards.find(c => c.id === editingCardId);
+    let pendienteVal = Math.abs(parseNum(inlineCardForm.pendiente));
+    let disponibleVal = parseNum(inlineCardForm.disponible);
+
+    if (dynamicCard && dynamicCard.isPaidThisMonth) {
+      pendienteVal = pendienteVal + dynamicCard.paidAmount;
+      disponibleVal = disponibleVal - dynamicCard.paidAmount;
+    }
+
     const saveForm = {
       ...inlineCardForm,
       credito: parseNum(inlineCardForm.credito),
-      pendiente: Math.abs(parseNum(inlineCardForm.pendiente)),
+      pendiente: pendienteVal,
       cuota: parseNum(inlineCardForm.cuota),
-      disponible: parseNum(inlineCardForm.disponible),
+      disponible: disponibleVal,
     };
     const { error } = await updateCard(editingCardId, saveForm);
     if (!error) { toast.success('Guardado'); setEditingCardId(null); }

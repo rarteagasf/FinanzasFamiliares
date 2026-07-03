@@ -322,3 +322,23 @@
   50% { opacity: 1; transform: scale(1.05); }
 }
 
+/* Custom styles for planning view tables to prevent horizontal scrolling */
+.planning-view table {
+  font-size: 0.8rem;
+}
+.planning-view th, .planning-view td {
+  padding: 0.5rem 0.65rem;
+}
+.planning-view th {
+  font-size: 0.7rem;
+}
+.planning-view .input {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+}
+.planning-view .btn {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.75rem;
+}
+
+
