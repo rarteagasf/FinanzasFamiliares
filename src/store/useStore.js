@@ -213,7 +213,8 @@ export const useStore = create((set, get) => ({
 
   // CRUD CARDS
   addCard: async (card) => {
-    const adjustedCard = { ...card, cuota: Math.min(card.cuota, card.pendiente) };
+    const { isPaidThisMonth, paidAmount, ...cleanCard } = card;
+    const adjustedCard = { ...cleanCard, cuota: Math.min(cleanCard.cuota, cleanCard.pendiente) };
     const { data, error } = await supabase.from('cards').insert(adjustedCard).select().single();
     if (!error && data) {
       set(state => ({ cards: [...state.cards, data] }));
@@ -227,7 +228,8 @@ export const useStore = create((set, get) => ({
     const nextPendiente = updates.pendiente !== undefined ? updates.pendiente : (card ? card.pendiente : 0);
     const nextCuota = updates.cuota !== undefined ? updates.cuota : (card ? card.cuota : 0);
     const adjustedCuota = Math.min(nextCuota, nextPendiente);
-    const cleanUpdatesObj = { ...updates, cuota: adjustedCuota };
+    
+    const { isPaidThisMonth, paidAmount, ...cleanUpdatesObj } = { ...updates, cuota: adjustedCuota };
 
     set(state => ({ cards: state.cards.map(c => c.id === id ? { ...c, ...cleanUpdatesObj } : c) }));
     const { id: _, created_at: __, ...cleanUpdates } = cleanUpdatesObj;
@@ -246,7 +248,8 @@ export const useStore = create((set, get) => ({
 
   // CRUD LOANS
   addLoan: async (loan) => {
-    const { data, error } = await supabase.from('loans').insert(loan).select().single();
+    const { isPaidThisMonth, ...cleanLoan } = loan;
+    const { data, error } = await supabase.from('loans').insert(cleanLoan).select().single();
     if (!error && data) {
       set(state => ({ loans: [...state.loans, data] }));
     }
@@ -255,8 +258,10 @@ export const useStore = create((set, get) => ({
 
   updateLoan: async (id, updates) => {
     const prev = get().loans;
-    set(state => ({ loans: state.loans.map(l => l.id === id ? { ...l, ...updates } : l) }));
-    const { id: _, created_at: __, ...cleanUpdates } = updates;
+    const { isPaidThisMonth, ...cleanUpdatesObj } = updates;
+
+    set(state => ({ loans: state.loans.map(l => l.id === id ? { ...l, ...cleanUpdatesObj } : l) }));
+    const { id: _, created_at: __, ...cleanUpdates } = cleanUpdatesObj;
     const { error } = await supabase.from('loans').update(cleanUpdates).eq('id', id);
     if (error) set({ loans: prev });
     return { error };
