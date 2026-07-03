@@ -52,6 +52,13 @@ function App() {
   useEffect(() => {
     globalStyles();
     fetchInitialData();
+    try {
+      if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+        window.screen.orientation.unlock().catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Orientation unlock not supported:', err);
+    }
   }, []);
 
   useEffect(() => {
