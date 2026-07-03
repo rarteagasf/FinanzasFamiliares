@@ -5,9 +5,11 @@ import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, ge
 import CurrencyValue from './ui/CurrencyValue';
 
 export default function Dashboard() {
-  const { balances, expenses, prevPendingExpenses = [], cards, entities, updateBalance } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards, entities, updateBalance, getDynamicCards } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
+
+  const dynamicCards = getDynamicCards();
 
   const totalSaldos = (balances.caixabank || 0) + (balances.hucha || 0) + (balances.ing_nomina || 0) + (balances.ing_naranja || 0);
   
@@ -149,12 +151,29 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {cards.map(card => (
+              {dynamicCards.map(card => (
                 <tr key={card.id}>
-                  <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
+                  <td style={{ fontWeight: 600 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      {card.tarjeta}
+                      {card.isPaidThisMonth && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          padding: '0.1rem 0.4rem',
+                          background: 'var(--badge-p-bg)',
+                          color: 'var(--success)',
+                          borderRadius: '9999px',
+                          fontWeight: 'bold',
+                          whiteSpace: 'nowrap'
+                        }} title={`Se ha pagado un total de ${card.paidAmount.toFixed(2)} €`}>
+                          Pagado
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td><CurrencyValue value={card.cuota} /></td>
                   <td style={{ color: 'var(--danger)' }}><CurrencyValue value={Math.abs(card.pendiente)} /></td>
-                  <td><CurrencyValue value={card.disponible} /></td>
+                  <td style={{ color: 'var(--success)', fontWeight: 600 }}><CurrencyValue value={card.disponible} /></td>
                 </tr>
               ))}
             </tbody>

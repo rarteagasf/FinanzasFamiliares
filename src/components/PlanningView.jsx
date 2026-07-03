@@ -7,7 +7,7 @@ import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function PlanningView() {
-  const { loans, cards, expenses, addLoan, updateLoan, deleteLoan, addCard, updateCard, deleteCard } = useStore();
+  const { loans, cards, addLoan, updateLoan, deleteLoan, addCard, updateCard, deleteCard, getDynamicLoans, getDynamicCards } = useStore();
 
   // Modals state for NEW items only
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
@@ -24,59 +24,9 @@ export default function PlanningView() {
   const [editingCardId, setEditingCardId] = useState(null);
   const [inlineCardForm, setInlineCardForm] = useState({});
 
-  // Dynamic loan values (considering payments made in the current month)
-  const dynamicLoans = loans.map(loan => {
-    const paidExpense = expenses.find(e => {
-      if (e.estado !== 'P') return false;
-      const { loanId } = getLinkInfo(e.concepto);
-      return loanId === loan.id;
-    });
-
-    if (paidExpense) {
-      const nextFaltan = Math.max(0, loan.faltan - 1);
-      const nextPendiente = Math.max(0, loan.pendiente - loan.cuota);
-      return {
-        ...loan,
-        faltan: nextFaltan,
-        pendiente: nextPendiente,
-        isPaidThisMonth: true,
-      };
-    }
-
-    return {
-      ...loan,
-      isPaidThisMonth: false,
-    };
-  });
-
-  // Dynamic card values (considering payments made in the current month)
-  const dynamicCards = cards.map(card => {
-    const paidAmount = expenses
-      .filter(e => {
-        if (e.estado !== 'P') return false;
-        const { cardId } = getLinkInfo(e.concepto);
-        return cardId === card.id;
-      })
-      .reduce((sum, e) => sum + e.importe, 0);
-
-    if (paidAmount > 0) {
-      const nextPendiente = Math.max(0, card.pendiente - paidAmount);
-      const nextDisponible = card.credito - nextPendiente;
-      return {
-        ...card,
-        pendiente: nextPendiente,
-        disponible: nextDisponible,
-        isPaidThisMonth: true,
-        paidAmount,
-      };
-    }
-
-    return {
-      ...card,
-      isPaidThisMonth: false,
-      paidAmount: 0,
-    };
-  });
+  // Dynamic values (considering payments made in the current month)
+  const dynamicLoans = getDynamicLoans();
+  const dynamicCards = getDynamicCards();
 
   // Totals Loans
   const totalPrestamosCapital = dynamicLoans.reduce((acc, curr) => acc + curr.capital_inicial, 0);
@@ -263,24 +213,7 @@ export default function PlanningView() {
                       </>
                     ) : (
                       <>
-                        <td className="fw-600">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            {loan.entidad}
-                            {loan.isPaidThisMonth && (
-                              <span style={{
-                                fontSize: '0.65rem',
-                                padding: '0.1rem 0.4rem',
-                                background: 'var(--badge-p-bg)',
-                                color: 'var(--success)',
-                                borderRadius: '9999px',
-                                fontWeight: 'bold',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                Pagado
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                        <td className="fw-600">{loan.entidad}</td>
                         <td><CurrencyValue value={loan.capital_inicial} /></td>
                         <td className="hide-tablet"><CurrencyValue value={loan.total_a_pagar || 0} /></td>
                         <td className="hide-tablet">{formatShortDate(loan.fecha_inicial)}</td>
@@ -364,24 +297,7 @@ export default function PlanningView() {
                     </>
                   ) : (
                     <>
-                      <td style={{ fontWeight: 600 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          {card.tarjeta}
-                          {card.isPaidThisMonth && (
-                            <span style={{
-                              fontSize: '0.65rem',
-                              padding: '0.1rem 0.4rem',
-                              background: 'var(--badge-p-bg)',
-                              color: 'var(--success)',
-                              borderRadius: '9999px',
-                              fontWeight: 'bold',
-                              whiteSpace: 'nowrap'
-                            }} title={`Se ha pagado un total de ${card.paidAmount.toFixed(2)} €`}>
-                              Pagado
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                      <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
                       <td><CurrencyValue value={card.credito} /></td>
                       <td><CurrencyValue value={card.cuota} /></td>
                       <td style={{ color: 'var(--danger)', fontWeight: 600 }}><CurrencyValue value={Math.abs(card.pendiente)} /></td>

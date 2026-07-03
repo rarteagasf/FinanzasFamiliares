@@ -2,6 +2,33 @@ import { create } from 'zustand';
 import { createClient } from '@supabase/supabase-js';
 import { getLinkInfo } from '../utils';
 
+const normalizeString = (str) => {
+  if (!str) return '';
+  return str.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+};
+
+const isLoanMatching = (concept, loanId, loan) => {
+  if (loanId === loan.id) return true;
+  const cleanConcept = normalizeString(concept);
+  const cleanEntidad = normalizeString(loan.entidad);
+  if (!cleanConcept || !cleanEntidad) return false;
+  return cleanConcept === cleanEntidad || 
+    (cleanConcept.includes('prestamo') && cleanConcept.includes(cleanEntidad));
+};
+
+const isCardMatching = (concept, cardId, card) => {
+  if (cardId === card.id) return true;
+  const cleanConcept = normalizeString(concept);
+  const cleanTarjeta = normalizeString(card.tarjeta);
+  if (!cleanConcept || !cleanTarjeta) return false;
+  return cleanConcept === cleanTarjeta || 
+    cleanConcept.includes(cleanTarjeta) || 
+    cleanTarjeta.includes(cleanConcept);
+};
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const familyToken = import.meta.env.VITE_FAMILY_TOKEN;
@@ -186,7 +213,8 @@ export const useStore = create((set, get) => ({
 
   // CRUD CARDS
   addCard: async (card) => {
-    const { data, error } = await supabase.from('cards').insert(card).select().single();
+    const adjustedCard = { ...card, cuota: Math.min(card.cuota, card.pendiente) };
+    const { data, error } = await supabase.from('cards').insert(adjustedCard).select().single();
     if (!error && data) {
       set(state => ({ cards: [...state.cards, data] }));
     }
@@ -195,8 +223,14 @@ export const useStore = create((set, get) => ({
 
   updateCard: async (id, updates) => {
     const prev = get().cards;
-    set(state => ({ cards: state.cards.map(c => c.id === id ? { ...c, ...updates } : c) }));
-    const { id: _, created_at: __, ...cleanUpdates } = updates;
+    const card = prev.find(c => c.id === id);
+    const nextPendiente = updates.pendiente !== undefined ? updates.pendiente : (card ? card.pendiente : 0);
+    const nextCuota = updates.cuota !== undefined ? updates.cuota : (card ? card.cuota : 0);
+    const adjustedCuota = Math.min(nextCuota, nextPendiente);
+    const cleanUpdatesObj = { ...updates, cuota: adjustedCuota };
+
+    set(state => ({ cards: state.cards.map(c => c.id === id ? { ...c, ...cleanUpdatesObj } : c) }));
+    const { id: _, created_at: __, ...cleanUpdates } = cleanUpdatesObj;
     const { error } = await supabase.from('cards').update(cleanUpdates).eq('id', id);
     if (error) set({ cards: prev });
     return { error };
@@ -334,21 +368,19 @@ export const useStore = create((set, get) => ({
         const { loans, cards } = get();
         for (const exp of currentExpenses) {
           if (exp.estado === 'P') {
-            const { loanId, cardId } = getLinkInfo(exp.concepto);
-            if (loanId) {
-              const loan = loans.find(l => l.id === loanId);
-              if (loan) {
-                const nextFaltan = Math.max(0, loan.faltan - 1);
-                const nextPendiente = Math.max(0, loan.pendiente - loan.cuota);
-                await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', loanId);
-              }
-            } else if (cardId) {
-              const card = cards.find(c => c.id === cardId);
-              if (card) {
-                const nextPendiente = Math.max(0, card.pendiente - exp.importe);
-                const nextDisponible = card.credito - nextPendiente;
-                await supabase.from('cards').update({ pendiente: nextPendiente, disponible: nextDisponible }).eq('id', cardId);
-              }
+            const { loanId, cardId, concept } = getLinkInfo(exp.concepto);
+            
+            const resolvedLoan = loans.find(l => isLoanMatching(concept, loanId, l));
+            const resolvedCard = cards.find(c => isCardMatching(concept, cardId, c));
+
+            if (resolvedLoan) {
+              const nextFaltan = Math.max(0, resolvedLoan.faltan - 1);
+              const nextPendiente = Math.max(0, resolvedLoan.pendiente - resolvedLoan.cuota);
+              await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', resolvedLoan.id);
+            } else if (resolvedCard) {
+              const nextPendiente = Math.max(0, resolvedCard.pendiente - exp.importe);
+              const nextDisponible = resolvedCard.credito - nextPendiente;
+              await supabase.from('cards').update({ pendiente: nextPendiente, disponible: nextDisponible }).eq('id', resolvedCard.id);
             }
           }
         }
@@ -441,6 +473,66 @@ export const useStore = create((set, get) => ({
       set({ loading: false });
       return { success: false, error: err.message };
     }
+  },
+
+  getDynamicLoans: () => {
+    const { loans, expenses } = get();
+    return loans.map(loan => {
+      const paidExpense = expenses.find(e => {
+        if (e.estado !== 'P') return false;
+        const { loanId, concept } = getLinkInfo(e.concepto);
+        return isLoanMatching(concept, loanId, loan);
+      });
+
+      if (paidExpense) {
+        const nextFaltan = Math.max(0, loan.faltan - 1);
+        const nextPendiente = Math.max(0, loan.pendiente - loan.cuota);
+        return {
+          ...loan,
+          faltan: nextFaltan,
+          pendiente: nextPendiente,
+          isPaidThisMonth: true,
+        };
+      }
+
+      return {
+        ...loan,
+        isPaidThisMonth: false,
+      };
+    });
+  },
+
+  getDynamicCards: () => {
+    const { cards, expenses } = get();
+    return cards.map(card => {
+      const paidAmount = expenses
+        .filter(e => {
+          if (e.estado !== 'P') return false;
+          const { cardId, concept } = getLinkInfo(e.concepto);
+          return isCardMatching(concept, cardId, card);
+        })
+        .reduce((sum, e) => sum + e.importe, 0);
+
+      if (paidAmount > 0) {
+        const nextPendiente = Math.max(0, card.pendiente - paidAmount);
+        const nextDisponible = card.credito - nextPendiente;
+        return {
+          ...card,
+          cuota: Math.min(card.cuota, nextPendiente),
+          pendiente: nextPendiente,
+          disponible: nextDisponible,
+          isPaidThisMonth: true,
+          paidAmount,
+        };
+      }
+
+      return {
+        ...card,
+        cuota: Math.min(card.cuota, card.pendiente),
+        isPaidThisMonth: false,
+        paidAmount: 0,
+      };
+    });
   },
 
   exportAllData: async () => {
