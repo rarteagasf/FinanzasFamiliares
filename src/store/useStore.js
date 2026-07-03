@@ -249,7 +249,8 @@ export const useStore = create((set, get) => ({
   // CRUD LOANS
   addLoan: async (loan) => {
     const { isPaidThisMonth, ...cleanLoan } = loan;
-    const { data, error } = await supabase.from('loans').insert(cleanLoan).select().single();
+    const adjustedLoan = { ...cleanLoan, pendiente: cleanLoan.faltan * cleanLoan.cuota };
+    const { data, error } = await supabase.from('loans').insert(adjustedLoan).select().single();
     if (!error && data) {
       set(state => ({ loans: [...state.loans, data] }));
     }
@@ -258,10 +259,16 @@ export const useStore = create((set, get) => ({
 
   updateLoan: async (id, updates) => {
     const prev = get().loans;
-    const { isPaidThisMonth, ...cleanUpdatesObj } = updates;
+    const loan = prev.find(l => l.id === id);
+    const nextFaltan = updates.faltan !== undefined ? updates.faltan : (loan ? loan.faltan : 0);
+    const nextCuota = updates.cuota !== undefined ? updates.cuota : (loan ? loan.cuota : 0);
+    const nextPendiente = nextFaltan * nextCuota;
+    const cleanUpdatesObj = { ...updates, faltan: nextFaltan, cuota: nextCuota, pendiente: nextPendiente };
 
-    set(state => ({ loans: state.loans.map(l => l.id === id ? { ...l, ...cleanUpdatesObj } : l) }));
-    const { id: _, created_at: __, ...cleanUpdates } = cleanUpdatesObj;
+    const { isPaidThisMonth, ...cleanUpdatesObjCleaned } = cleanUpdatesObj;
+
+    set(state => ({ loans: state.loans.map(l => l.id === id ? { ...l, ...cleanUpdatesObjCleaned } : l) }));
+    const { id: _, created_at: __, ...cleanUpdates } = cleanUpdatesObjCleaned;
     const { error } = await supabase.from('loans').update(cleanUpdates).eq('id', id);
     if (error) set({ loans: prev });
     return { error };
@@ -380,7 +387,7 @@ export const useStore = create((set, get) => ({
 
             if (resolvedLoan) {
               const nextFaltan = Math.max(0, resolvedLoan.faltan - 1);
-              const nextPendiente = Math.max(0, resolvedLoan.pendiente - resolvedLoan.cuota);
+              const nextPendiente = nextFaltan * resolvedLoan.cuota;
               await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', resolvedLoan.id);
             } else if (resolvedCard) {
               const nextPendiente = Math.max(0, resolvedCard.pendiente - exp.importe);
@@ -491,7 +498,7 @@ export const useStore = create((set, get) => ({
 
       if (paidExpense) {
         const nextFaltan = Math.max(0, loan.faltan - 1);
-        const nextPendiente = Math.max(0, loan.pendiente - loan.cuota);
+        const nextPendiente = nextFaltan * loan.cuota;
         return {
           ...loan,
           faltan: nextFaltan,
@@ -502,6 +509,7 @@ export const useStore = create((set, get) => ({
 
       return {
         ...loan,
+        pendiente: loan.faltan * loan.cuota,
         isPaidThisMonth: false,
       };
     });
