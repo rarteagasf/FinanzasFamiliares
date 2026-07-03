@@ -104,10 +104,10 @@ export const useStore = create((set, get) => ({
     });
   },
 
-  // CRUD EXPENSES
   addExpense: async (expense) => {
     const { selectedMonthId } = get();
-    const newExpense = { ...expense, month_id: selectedMonthId };
+    const { id: _, created_at: __, loanId: ___, cardId: ____, ...cleanExpense } = expense;
+    const newExpense = { ...cleanExpense, month_id: selectedMonthId };
     const { data, error } = await supabase.from('expenses').insert(newExpense).select().single();
     if (!error && data) {
       set(state => ({ expenses: [...state.expenses, data] }));
@@ -122,7 +122,7 @@ export const useStore = create((set, get) => ({
       expenses: state.expenses.map(e => e.id === id ? { ...e, ...updates } : e),
     }));
 
-    const { id: _, created_at: __, month_id: ___, ...cleanUpdates } = updates;
+    const { id: _, created_at: __, month_id: ___, loanId: ____, cardId: _____, ...cleanUpdates } = updates;
     const { error } = await supabase.from('expenses').update(cleanUpdates).eq('id', id);
     if (error) {
       set({ expenses: prevExpenses }); // Revert on error
