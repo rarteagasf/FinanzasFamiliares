@@ -156,19 +156,6 @@ export default function Dashboard() {
                   <td style={{ fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       {card.tarjeta}
-                      {card.isPaidThisMonth && (
-                        <span style={{
-                          fontSize: '0.65rem',
-                          padding: '0.1rem 0.4rem',
-                          background: 'var(--badge-p-bg)',
-                          color: 'var(--success)',
-                          borderRadius: '9999px',
-                          fontWeight: 'bold',
-                          whiteSpace: 'nowrap'
-                        }} title={`Se ha pagado un total de ${card.paidAmount.toFixed(2)} €`}>
-                          Pagado
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td><CurrencyValue value={card.cuota} /></td>
