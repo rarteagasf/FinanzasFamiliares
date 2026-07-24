@@ -303,7 +303,7 @@ function App() {
       <Modal isOpen={isCloseMonthModalOpen} onClose={() => setIsCloseMonthModalOpen(false)} title={`Cerrar ${selectedMonth?.name}`}>
         <form onSubmit={handleCloseMonth}>
           <p style={{ marginBottom: '1.25rem', color: 'var(--text-main)', fontSize: '0.9rem' }}>
-            Se cerrará el mes de <strong>{selectedMonth?.name}</strong> y se creará el nuevo mes de facturación.
+            ¿Estás seguro de que deseas cerrar el mes de <strong>{selectedMonth?.name}</strong> y crear el nuevo mes de facturación?
           </p>
           
           <div style={{ 

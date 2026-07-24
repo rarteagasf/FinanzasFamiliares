@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Plus, Trash2, Calendar, CheckSquare, Square, AlertCircle, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Pencil, Calendar, CheckSquare, Square, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from './ui/Modal';
-
 
 export default function RemindersView() {
   const { reminders, addReminder, updateReminder, deleteReminder } = useStore();
@@ -13,10 +12,13 @@ export default function RemindersView() {
   const [fechaLimite, setFechaLimite] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
+  // Edit state
+  const [editingReminder, setEditingReminder] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
   // Confirmation State
   const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
-  
   // Filter state
   const [filter, setFilter] = useState('pending'); // 'pending' | 'completed' | 'all'
 
@@ -40,6 +42,33 @@ export default function RemindersView() {
       setFechaLimite('');
     } else {
       toast.error('Error al añadir: ' + error.message);
+    }
+  };
+
+  const handleEditClick = (reminder) => {
+    setEditingReminder({
+      id: reminder.id,
+      texto: reminder.texto,
+      fecha_limite: reminder.fecha_limite || ''
+    });
+  };
+
+  const handleUpdateSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingReminder || !editingReminder.texto.trim()) return;
+
+    setEditSubmitting(true);
+    const { error } = await updateReminder(editingReminder.id, {
+      texto: editingReminder.texto.trim(),
+      fecha_limite: editingReminder.fecha_limite ? editingReminder.fecha_limite : null
+    });
+    setEditSubmitting(false);
+
+    if (!error) {
+      toast.success('Recordatorio actualizado');
+      setEditingReminder(null);
+    } else {
+      toast.error('Error al actualizar: ' + error.message);
     }
   };
 
@@ -71,7 +100,6 @@ export default function RemindersView() {
       }
     });
   };
-
 
   // Filter reminders
   const filteredReminders = reminders.filter(r => {
@@ -278,28 +306,52 @@ export default function RemindersView() {
                       )}
                     </div>
 
-                    {/* Delete Action */}
-                    <button
-                      className="btn"
-                      onClick={() => handleDelete(reminder.id)}
-                      style={{
-                        padding: '0.35rem',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: 'var(--text-muted)',
-                        borderRadius: '6px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                      title="Eliminar recordatorio"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {/* Actions: Edit & Delete */}
+                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                      <button
+                        className="btn"
+                        onClick={() => handleEditClick(reminder)}
+                        style={{
+                          padding: '0.35rem',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: 'var(--text-muted)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--primary)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                        title="Editar recordatorio"
+                      >
+                        <Pencil size={16} />
+                      </button>
+
+                      <button
+                        className="btn"
+                        onClick={() => handleDelete(reminder.id)}
+                        style={{
+                          padding: '0.35rem',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: 'var(--text-muted)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                        title="Eliminar recordatorio"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -307,6 +359,56 @@ export default function RemindersView() {
           </div>
         </div>
       </div>
+
+      {/* Modal Edición Recordatorio */}
+      <Modal 
+        isOpen={!!editingReminder} 
+        onClose={() => setEditingReminder(null)} 
+        title="Editar Recordatorio"
+      >
+        {editingReminder && (
+          <form onSubmit={handleUpdateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="form-group">
+              <label>¿Qué quieres recordar?</label>
+              <textarea
+                className="input"
+                style={{ width: '100%', minHeight: '80px', resize: 'vertical', padding: '0.75rem' }}
+                value={editingReminder.texto}
+                onChange={e => setEditingReminder({ ...editingReminder, texto: e.target.value })}
+                required
+                disabled={editSubmitting}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Fecha límite (Opcional)</label>
+              <input
+                type="date"
+                className="input"
+                value={editingReminder.fecha_limite}
+                onChange={e => setEditingReminder({ ...editingReminder, fecha_limite: e.target.value })}
+                disabled={editSubmitting}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditingReminder(null)}
+                disabled={editSubmitting}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={editSubmitting}>
+                {editSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       {/* Modal Confirmación Genérico */}
       <Modal 
         isOpen={confirmState.isOpen} 
@@ -330,4 +432,3 @@ export default function RemindersView() {
     </div>
   );
 }
-
