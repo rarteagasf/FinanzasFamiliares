@@ -29,6 +29,20 @@ const isCardMatching = (concept, cardId, card) => {
     cleanTarjeta.includes(cleanConcept);
 };
 
+const isEntityMatch = (expenseEntity, targetEntity) => {
+  if (!targetEntity || targetEntity === 'ALL') return true;
+  if (!expenseEntity) return false;
+  return expenseEntity.trim().toLowerCase() === targetEntity.trim().toLowerCase();
+};
+
+const getBalanceAccountsForEntity = (entityName) => {
+  if (!entityName || entityName === 'ALL') return ['caixabank', 'hucha', 'ing_nomina', 'ing_naranja'];
+  const norm = entityName.trim().toUpperCase();
+  if (norm.includes('ING')) return ['ing_nomina', 'ing_naranja'];
+  if (norm.includes('CAIXA')) return ['caixabank'];
+  return ['caixabank', 'hucha', 'ing_nomina', 'ing_naranja'];
+};
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const familyToken = import.meta.env.VITE_FAMILY_TOKEN;
@@ -325,47 +339,33 @@ export const useStore = create((set, get) => ({
     await supabase.from('balances').update({ [account]: value }).eq('month_id', selectedMonthId);
   },
 
-  closeAndCreateMonth: async (currentMonthId, newMonthName) => {
+  closeAndCreateMonth: async (currentMonthId, newMonthName, targetEntity = 'ALL') => {
     set({ loading: true });
     try {
-      // 1. Insert the new month
-      const { data: newMonth, error: newMonthError } = await supabase
-        .from('months')
-        .insert({ name: newMonthName, status: 'open' })
-        .select()
-        .single();
+      let newMonth;
       
-      if (newMonthError || !newMonth) {
-        throw new Error('Error al crear el nuevo mes: ' + newMonthError?.message);
-      }
-
-      // 2. Close the current month
-      const { error: closeMonthError } = await supabase
+      // 1. Check if new month already exists or create it
+      const { data: existingMonths } = await supabase
         .from('months')
-        .update({ status: 'closed' })
-        .eq('id', currentMonthId);
-      
-      if (closeMonthError) {
-        throw new Error('Error al cerrar el mes actual: ' + closeMonthError.message);
+        .select('*')
+        .eq('name', newMonthName);
+
+      if (existingMonths && existingMonths.length > 0) {
+        newMonth = existingMonths[0];
+      } else {
+        const { data: createdMonth, error: newMonthError } = await supabase
+          .from('months')
+          .insert({ name: newMonthName, status: 'open' })
+          .select()
+          .single();
+
+        if (newMonthError || !createdMonth) {
+          throw new Error('Error al crear el nuevo mes: ' + newMonthError?.message);
+        }
+        newMonth = createdMonth;
       }
 
-      // 3. Copy balances (using current local state balances)
-      const { balances } = get();
-      const { error: balanceError } = await supabase
-        .from('balances')
-        .insert({
-          month_id: newMonth.id,
-          caixabank: balances.caixabank || 0,
-          hucha: balances.hucha || 0,
-          ing_nomina: balances.ing_nomina || 0,
-          ing_naranja: balances.ing_naranja || 0
-        });
-
-      if (balanceError) {
-        throw new Error('Error al inicializar los saldos: ' + balanceError.message);
-      }
-
-      // 4. Fetch expenses of current month to clone them
+      // 2. Fetch expenses of current month
       const { data: currentExpenses, error: fetchExpensesError } = await supabase
         .from('expenses')
         .select('*')
@@ -375,13 +375,70 @@ export const useStore = create((set, get) => ({
         throw new Error('Error al obtener gastos para clonar: ' + fetchExpensesError.message);
       }
 
-      if (currentExpenses && currentExpenses.length > 0) {
-        // Update loans and cards baseline in database for any paid linked expenses
+      const expensesToClone = (currentExpenses || []).filter(exp => 
+        targetEntity === 'ALL' || isEntityMatch(exp.entidad, targetEntity)
+      );
+
+      const remainingExpensesInCurrent = (currentExpenses || []).filter(exp => 
+        targetEntity !== 'ALL' && !isEntityMatch(exp.entidad, targetEntity)
+      );
+
+      // Close current month if ALL entities are closed or no expenses remain
+      if (targetEntity === 'ALL' || remainingExpensesInCurrent.length === 0) {
+        const { error: closeMonthError } = await supabase
+          .from('months')
+          .update({ status: 'closed' })
+          .eq('id', currentMonthId);
+        
+        if (closeMonthError) {
+          throw new Error('Error al cerrar el mes actual: ' + closeMonthError.message);
+        }
+      }
+
+      // 3. Handle Balances
+      const { balances } = get();
+      const accountsToUpdate = getBalanceAccountsForEntity(targetEntity);
+
+      const { data: existingTargetBalance } = await supabase
+        .from('balances')
+        .select('*')
+        .eq('month_id', newMonth.id)
+        .maybeSingle();
+
+      if (existingTargetBalance) {
+        const balanceUpdates = {};
+        accountsToUpdate.forEach(acc => {
+          balanceUpdates[acc] = balances[acc] || 0;
+        });
+        if (Object.keys(balanceUpdates).length > 0) {
+          await supabase
+            .from('balances')
+            .update(balanceUpdates)
+            .eq('id', existingTargetBalance.id);
+        }
+      } else {
+        const newBalanceObj = {
+          month_id: newMonth.id,
+          caixabank: accountsToUpdate.includes('caixabank') ? (balances.caixabank || 0) : 0,
+          hucha: accountsToUpdate.includes('hucha') ? (balances.hucha || 0) : 0,
+          ing_nomina: accountsToUpdate.includes('ing_nomina') ? (balances.ing_nomina || 0) : 0,
+          ing_naranja: accountsToUpdate.includes('ing_naranja') ? (balances.ing_naranja || 0) : 0
+        };
+        const { error: balanceError } = await supabase
+          .from('balances')
+          .insert(newBalanceObj);
+
+        if (balanceError) {
+          throw new Error('Error al inicializar los saldos: ' + balanceError.message);
+        }
+      }
+
+      // 4. Clone expenses & update loan/card baselines
+      if (expensesToClone.length > 0) {
         const { loans, cards } = get();
-        for (const exp of currentExpenses) {
+        for (const exp of expensesToClone) {
           if (exp.estado === 'P') {
             const { loanId, cardId, concept } = getLinkInfo(exp.concepto);
-            
             const resolvedLoan = loans.find(l => isLoanMatching(concept, loanId, l));
             const resolvedCard = cards.find(c => isCardMatching(concept, cardId, c));
 
@@ -397,14 +454,13 @@ export const useStore = create((set, get) => ({
           }
         }
 
-        // Prepare cloned expenses without their original id (so database generates new UUID)
-        const clonedExpenses = currentExpenses.map(exp => ({
+        const clonedExpenses = expensesToClone.map(exp => ({
           month_id: newMonth.id,
           dia: exp.dia,
           concepto: exp.concepto,
           importe: exp.importe,
           entidad: exp.entidad,
-          estado: exp.estado === '-' ? '-' : 'X' // P/X -> X, - -> -
+          estado: exp.estado === '-' ? '-' : 'X'
         }));
 
         const { error: insertExpensesError } = await supabase
@@ -418,8 +474,6 @@ export const useStore = create((set, get) => ({
 
       // 5. Reload all data
       await get().fetchInitialData();
-      
-      // Specifically select the new month
       await get().fetchMonthData(newMonth.id);
       
       return { success: true };
@@ -430,53 +484,75 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  revertMonthClose: async (monthToDeleteId, monthToReopenId) => {
+  revertMonthClose: async (monthToDeleteId, monthToReopenId, targetEntity = 'ALL') => {
     set({ loading: true });
     try {
-      // 1. Delete expenses associated with the month to delete
-      const { error: deleteExpensesError } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('month_id', monthToDeleteId);
-      
-      if (deleteExpensesError) {
-        throw new Error('Error al eliminar los gastos del mes: ' + deleteExpensesError.message);
+      if (targetEntity === 'ALL') {
+        // Full revert
+        const { error: deleteExpensesError } = await supabase
+          .from('expenses')
+          .delete()
+          .eq('month_id', monthToDeleteId);
+        
+        if (deleteExpensesError) {
+          throw new Error('Error al eliminar los gastos del mes: ' + deleteExpensesError.message);
+        }
+
+        const { error: deleteBalancesError } = await supabase
+          .from('balances')
+          .delete()
+          .eq('month_id', monthToDeleteId);
+
+        if (deleteBalancesError) {
+          throw new Error('Error al eliminar los saldos del mes: ' + deleteBalancesError.message);
+        }
+
+        const { error: deleteMonthError } = await supabase
+          .from('months')
+          .delete()
+          .eq('id', monthToDeleteId);
+
+        if (deleteMonthError) {
+          throw new Error('Error al eliminar el registro del mes: ' + deleteMonthError.message);
+        }
+
+        const { error: reopenMonthError } = await supabase
+          .from('months')
+          .update({ status: 'open' })
+          .eq('id', monthToReopenId);
+
+        if (reopenMonthError) {
+          throw new Error('Error al reabrir el mes anterior: ' + reopenMonthError.message);
+        }
+      } else {
+        // Entity specific revert
+        const { data: monthExpenses } = await supabase
+          .from('expenses')
+          .select('*')
+          .eq('month_id', monthToDeleteId);
+
+        const entityExpenses = (monthExpenses || []).filter(e => isEntityMatch(e.entidad, targetEntity));
+        for (const exp of entityExpenses) {
+          await supabase.from('expenses').delete().eq('id', exp.id);
+        }
+
+        await supabase
+          .from('months')
+          .update({ status: 'open' })
+          .eq('id', monthToReopenId);
+
+        const { data: remainingExpenses } = await supabase
+          .from('expenses')
+          .select('*')
+          .eq('month_id', monthToDeleteId);
+
+        if (!remainingExpenses || remainingExpenses.length === 0) {
+          await supabase.from('balances').delete().eq('month_id', monthToDeleteId);
+          await supabase.from('months').delete().eq('id', monthToDeleteId);
+        }
       }
 
-      // 2. Delete balances associated with the month to delete
-      const { error: deleteBalancesError } = await supabase
-        .from('balances')
-        .delete()
-        .eq('month_id', monthToDeleteId);
-
-      if (deleteBalancesError) {
-        throw new Error('Error al eliminar los saldos del mes: ' + deleteBalancesError.message);
-      }
-
-      // 3. Delete the month itself
-      const { error: deleteMonthError } = await supabase
-        .from('months')
-        .delete()
-        .eq('id', monthToDeleteId);
-
-      if (deleteMonthError) {
-        throw new Error('Error al eliminar el registro del mes: ' + deleteMonthError.message);
-      }
-
-      // 4. Set the previous month to open
-      const { error: reopenMonthError } = await supabase
-        .from('months')
-        .update({ status: 'open' })
-        .eq('id', monthToReopenId);
-
-      if (reopenMonthError) {
-        throw new Error('Error al reabrir el mes anterior: ' + reopenMonthError.message);
-      }
-
-      // 5. Reload all data
       await get().fetchInitialData();
-      
-      // Specifically select and load the reopened month
       await get().fetchMonthData(monthToReopenId);
 
       return { success: true };

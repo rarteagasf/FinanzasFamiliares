@@ -328,11 +328,23 @@ export default function ExpensesList() {
           <button className="btn btn-secondary" onClick={() => setIsEntityModalOpen(true)}>
             <Settings size={16} /> Entidades
           </button>
-          {entities.map(ent => (
-            <button key={ent.id} className="btn btn-danger" onClick={() => handleReset(ent.name)}>
-              <RefreshCw size={16} /> Reset {ent.name}
-            </button>
-          ))}
+          {entities.map(ent => {
+            const isIng = ent.name.toUpperCase().includes('ING');
+            const isCaixa = ent.name.toUpperCase().includes('CAIXA');
+            const note = isIng ? ' (Pensión día 25)' : isCaixa ? ' (Nómina fin de mes)' : '';
+            return (
+              <button 
+                key={ent.id} 
+                className="btn btn-danger" 
+                onClick={() => handleReset(ent.name)}
+                title={`Resetear estado a Pendiente para ${ent.name}${note}`}
+              >
+                <RefreshCw size={16} /> Reset {ent.name}
+                {isIng && <span style={{ opacity: 0.85, fontSize: '0.75rem', marginLeft: '0.2rem' }}>(Día 25)</span>}
+                {isCaixa && <span style={{ opacity: 0.85, fontSize: '0.75rem', marginLeft: '0.2rem' }}>(Fin de mes)</span>}
+              </button>
+            );
+          })}
           <button className="btn btn-primary" onClick={() => openExpenseModal()}>
             <Plus size={16} /> Añadir
           </button>
