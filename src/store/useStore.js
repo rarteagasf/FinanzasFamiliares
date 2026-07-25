@@ -419,10 +419,10 @@ export const useStore = create((set, get) => ({
       } else {
         const newBalanceObj = {
           month_id: newMonth.id,
-          caixabank: accountsToUpdate.includes('caixabank') ? (balances.caixabank || 0) : 0,
-          hucha: accountsToUpdate.includes('hucha') ? (balances.hucha || 0) : 0,
-          ing_nomina: accountsToUpdate.includes('ing_nomina') ? (balances.ing_nomina || 0) : 0,
-          ing_naranja: accountsToUpdate.includes('ing_naranja') ? (balances.ing_naranja || 0) : 0
+          caixabank: balances.caixabank || 0,
+          hucha: balances.hucha || 0,
+          ing_nomina: balances.ing_nomina || 0,
+          ing_naranja: balances.ing_naranja || 0
         };
         const { error: balanceError } = await supabase
           .from('balances')
