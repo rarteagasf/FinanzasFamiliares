@@ -78,44 +78,50 @@ export const useStore = create((set, get) => ({
   // Load Initial Data
   fetchInitialData: async () => {
     set({ loading: true });
-    
-    // Fetch months & entities
-    const { data: monthsData } = await supabase.from('months').select('*').order('created_at', { ascending: false });
-    const { data: entitiesData } = await supabase.from('entities').select('*');
-    
-    const activeMonth = monthsData?.find(m => m.status === 'open') || monthsData?.[0];
-    
-    // Fetch global data
-    const { data: loansData } = await supabase.from('loans').select('*');
-    // Ensure cards baseline pendings are not 0 for revolving cards
-    if (cardsData) {
-      for (const card of cardsData) {
-        if (card.tarjeta === 'Visa CAIXABANK' && card.pendiente === 0) {
-          await supabase.from('cards').update({ pendiente: 2455.36, disponible: 544.64 }).eq('id', card.id);
-          card.pendiente = 2455.36;
-          card.disponible = 544.64;
-        } else if (card.tarjeta === 'Visa ING' && card.pendiente === 0) {
-          await supabase.from('cards').update({ pendiente: 1502.96, disponible: 497.04 }).eq('id', card.id);
-          card.pendiente = 1502.96;
-          card.disponible = 497.04;
+    try {
+      // Fetch months & entities
+      const { data: monthsData } = await supabase.from('months').select('*').order('created_at', { ascending: false });
+      const { data: entitiesData } = await supabase.from('entities').select('*');
+      
+      const activeMonth = monthsData?.find(m => m.status === 'open') || monthsData?.[0];
+      
+      // Fetch global data
+      const { data: loansData } = await supabase.from('loans').select('*');
+      const { data: cardsData } = await supabase.from('cards').select('*');
+      const { data: remindersData } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
+      
+      // Ensure cards baseline pendings are not 0 for revolving cards
+      if (cardsData) {
+        for (const card of cardsData) {
+          if (card.tarjeta === 'Visa CAIXABANK' && card.pendiente === 0) {
+            await supabase.from('cards').update({ pendiente: 2455.36, disponible: 544.64 }).eq('id', card.id);
+            card.pendiente = 2455.36;
+            card.disponible = 544.64;
+          } else if (card.tarjeta === 'Visa ING' && card.pendiente === 0) {
+            await supabase.from('cards').update({ pendiente: 1502.96, disponible: 497.04 }).eq('id', card.id);
+            card.pendiente = 1502.96;
+            card.disponible = 497.04;
+          }
         }
       }
-    }
 
-    set({ 
-      months: monthsData || [], 
-      entities: entitiesData || [],
-      selectedMonthId: activeMonth?.id || null,
-      loans: loansData || [],
-      cards: cardsData || [],
-      reminders: remindersData || []
-    });
+      set({ 
+        months: monthsData || [], 
+        entities: entitiesData || [],
+        selectedMonthId: activeMonth?.id || null,
+        loans: loansData || [],
+        cards: cardsData || [],
+        reminders: remindersData || []
+      });
 
-    if (activeMonth) {
-      await get().fetchMonthData(activeMonth.id);
+      if (activeMonth) {
+        await get().fetchMonthData(activeMonth.id);
+      }
+    } catch (err) {
+      console.error('Error fetching initial data:', err);
+    } finally {
+      set({ loading: false });
     }
-    
-    set({ loading: false });
   },
 
   // Theme
