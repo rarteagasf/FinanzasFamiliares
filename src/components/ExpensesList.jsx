@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, getLinkInfo, setLinkInfo } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo } from '../utils';
 import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
@@ -21,7 +21,7 @@ export default function ExpensesList() {
   const [isEntityModalOpen, setIsEntityModalOpen] = useState(false);
   const [newEntityName, setNewEntityName] = useState('');
 
-  const [formData, setFormData] = useState({ dia: 1, concepto: '', importe: 0, entidad: '', estado: 'X', loanId: '', cardId: '' });
+  const [formData, setFormData] = useState({ dia: 1, concepto: '', importe: '', entidad: '', estado: 'X', loanId: '', cardId: '' });
 
   // Inline Editing State
   const [inlineEditingId, setInlineEditingId] = useState(null);
@@ -76,12 +76,13 @@ export default function ExpensesList() {
       setFormData({
         ...expense,
         concepto: concept,
+        importe: formatInputDecimal(expense.importe),
         loanId: loanId || '',
         cardId: cardId || ''
       });
     } else {
       setEditingExpense(null);
-      setFormData({ dia: 1, concepto: '', importe: 0, entidad: entities[0]?.name || '', estado: 'X', loanId: '', cardId: '' });
+      setFormData({ dia: 1, concepto: '', importe: '', entidad: entities[0]?.name || '', estado: 'X', loanId: '', cardId: '' });
     }
     setIsExpenseModalOpen(true);
   };
@@ -89,10 +90,11 @@ export default function ExpensesList() {
   const saveExpense = async (e) => {
     e.preventDefault();
     const finalConcept = setLinkInfo(formData.concepto, formData.loanId, formData.cardId);
+    const numericImporte = parseNum(normalizeDecimalInput(formData.importe));
     const saveData = {
       dia: formData.dia,
       concepto: finalConcept,
-      importe: formData.importe,
+      importe: numericImporte,
       entidad: formData.entidad,
       estado: formData.estado
     };
@@ -111,7 +113,7 @@ export default function ExpensesList() {
     } else {
       const { error } = await addExpense(saveData);
       if (!error) toast.success('Gasto añadido');
-      else toast.error('Error al añadir');
+      else toast.error('Error al añadir: ' + (error?.message || ''));
       setIsExpenseModalOpen(false);
     }
   };
@@ -483,7 +485,19 @@ export default function ExpensesList() {
         <form onSubmit={saveExpense}>
           <div className="form-group"><label>Día</label><input type="number" className="input" value={formData.dia} onChange={e => setFormData({...formData, dia: parseInt(e.target.value)})} required min="1" max="31" /></div>
           <div className="form-group"><label>Concepto</label><input type="text" className="input" value={formData.concepto} onChange={e => setFormData({...formData, concepto: e.target.value})} required /></div>
-          <div className="form-group"><label>Importe (€)</label><input type="text" inputMode="decimal" className="input" value={formatInputDecimal(formData.importe)} onChange={e => setFormData({...formData, importe: parseNum(normalizeDecimalInput(e.target.value))})} required /></div>
+          <div className="form-group">
+            <label>Importe (€)</label>
+            <input 
+              type="text" 
+              inputMode="decimal" 
+              className="input" 
+              value={formData.importe} 
+              onChange={e => setFormData({...formData, importe: normalizeDecimalInput(e.target.value)})} 
+              onKeyDown={onNumKeyDown}
+              placeholder="0,00"
+              required 
+            />
+          </div>
           <div className="form-group"><label>Entidad</label><select className="input" value={formData.entidad} onChange={e => setFormData({...formData, entidad: e.target.value})} required>{entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}</select></div>
           <div className="form-group"><label>Estado Inicial</label><select className="input" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})}><option value="X">Pendiente</option><option value="P">Pagado</option><option value="-">No aplica</option></select></div>
           
