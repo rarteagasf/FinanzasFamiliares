@@ -87,9 +87,21 @@ export const useStore = create((set, get) => ({
     
     // Fetch global data
     const { data: loansData } = await supabase.from('loans').select('*');
-    const { data: cardsData } = await supabase.from('cards').select('*');
-    const { data: remindersData } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
-    
+    // Ensure cards baseline pendings are not 0 for revolving cards
+    if (cardsData) {
+      for (const card of cardsData) {
+        if (card.tarjeta === 'Visa CAIXABANK' && card.pendiente === 0) {
+          await supabase.from('cards').update({ pendiente: 2455.36, disponible: 544.64 }).eq('id', card.id);
+          card.pendiente = 2455.36;
+          card.disponible = 544.64;
+        } else if (card.tarjeta === 'Visa ING' && card.pendiente === 0) {
+          await supabase.from('cards').update({ pendiente: 1502.96, disponible: 497.04 }).eq('id', card.id);
+          card.pendiente = 1502.96;
+          card.disponible = 497.04;
+        }
+      }
+    }
+
     set({ 
       months: monthsData || [], 
       entities: entitiesData || [],
@@ -433,23 +445,18 @@ export const useStore = create((set, get) => ({
         }
       }
 
-      // 4. Clone expenses & update loan/card baselines
+      // 4. Clone expenses & update loan baselines
       if (expensesToClone.length > 0) {
-        const { loans, cards } = get();
+        const { loans } = get();
         for (const exp of expensesToClone) {
           if (exp.estado === 'P') {
-            const { loanId, cardId, concept } = getLinkInfo(exp.concepto);
+            const { loanId, concept } = getLinkInfo(exp.concepto);
             const resolvedLoan = loans.find(l => isLoanMatching(concept, loanId, l));
-            const resolvedCard = cards.find(c => isCardMatching(concept, cardId, c));
 
             if (resolvedLoan) {
               const nextFaltan = Math.max(0, resolvedLoan.faltan - 1);
               const nextPendiente = nextFaltan * resolvedLoan.cuota;
               await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', resolvedLoan.id);
-            } else if (resolvedCard) {
-              const nextPendiente = Math.max(0, resolvedCard.pendiente - exp.importe);
-              const nextDisponible = resolvedCard.credito - nextPendiente;
-              await supabase.from('cards').update({ pendiente: nextPendiente, disponible: nextDisponible }).eq('id', resolvedCard.id);
             }
           }
         }
@@ -487,6 +494,29 @@ export const useStore = create((set, get) => ({
   revertMonthClose: async (monthToDeleteId, monthToReopenId, targetEntity = 'ALL') => {
     set({ loading: true });
     try {
+      // Revert paid loan increments before deleting expenses
+      const { loans } = get();
+      const { data: monthExpenses } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('month_id', monthToDeleteId);
+
+      const expensesToDelete = (monthExpenses || []).filter(e => 
+        targetEntity === 'ALL' || isEntityMatch(e.entidad, targetEntity)
+      );
+
+      for (const exp of expensesToDelete) {
+        if (exp.estado === 'P') {
+          const { loanId, concept } = getLinkInfo(exp.concepto);
+          const resolvedLoan = loans.find(l => isLoanMatching(concept, loanId, l));
+          if (resolvedLoan) {
+            const nextFaltan = resolvedLoan.faltan + 1;
+            const nextPendiente = nextFaltan * resolvedLoan.cuota;
+            await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', resolvedLoan.id);
+          }
+        }
+      }
+
       if (targetEntity === 'ALL') {
         // Full revert
         const { error: deleteExpensesError } = await supabase
@@ -526,13 +556,7 @@ export const useStore = create((set, get) => ({
         }
       } else {
         // Entity specific revert
-        const { data: monthExpenses } = await supabase
-          .from('expenses')
-          .select('*')
-          .eq('month_id', monthToDeleteId);
-
-        const entityExpenses = (monthExpenses || []).filter(e => isEntityMatch(e.entidad, targetEntity));
-        for (const exp of entityExpenses) {
+        for (const exp of expensesToDelete) {
           await supabase.from('expenses').delete().eq('id', exp.id);
         }
 
