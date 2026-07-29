@@ -43,12 +43,10 @@ function App() {
   // Close/Create Month Modal States
   const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
   const [newMonthName, setNewMonthName] = useState('');
-  const [closeEntity, setCloseEntity] = useState('ALL');
   const [closing, setClosing] = useState(false);
 
   // Revert Month Close States
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
-  const [revertEntity, setRevertEntity] = useState('ALL');
   const [reverting, setReverting] = useState(false);
 
   useEffect(() => {
@@ -129,7 +127,6 @@ function App() {
   const openCloseMonthModal = () => {
     if (selectedMonth) {
       setNewMonthName(getNextMonthName(selectedMonth.name));
-      setCloseEntity('ALL');
       setIsCloseMonthModalOpen(true);
     }
   };
@@ -138,11 +135,10 @@ function App() {
     e.preventDefault();
     if (!newMonthName.trim() || !selectedMonthId) return;
     setClosing(true);
-    const result = await closeAndCreateMonth(selectedMonthId, newMonthName.trim(), closeEntity);
+    const result = await closeAndCreateMonth(selectedMonthId, newMonthName.trim());
     setClosing(false);
     if (result.success) {
-      const entityText = closeEntity === 'ALL' ? 'todas las entidades' : closeEntity;
-      toast.success(`Cierre de ${entityText} procesado. Mes: ${newMonthName}`);
+      toast.success(`Cierre de mes procesado. Nuevo mes: ${newMonthName}`);
       setIsCloseMonthModalOpen(false);
     } else {
       toast.error(`Error al cerrar el mes: ${result.error}`);
@@ -152,11 +148,10 @@ function App() {
   const handleRevertClose = async () => {
     if (!selectedMonthId || !closedMonthToReopen) return;
     setReverting(true);
-    const result = await revertMonthClose(selectedMonthId, closedMonthToReopen.id, revertEntity);
+    const result = await revertMonthClose(selectedMonthId, closedMonthToReopen.id);
     setReverting(false);
     if (result.success) {
-      const entityText = revertEntity === 'ALL' ? 'todas las entidades' : revertEntity;
-      toast.success(`Cierre revertido para ${entityText}. Se ha reabierto ${closedMonthToReopen.name}`);
+      toast.success(`Cierre revertido. Se ha reabierto ${closedMonthToReopen.name}`);
       setIsRevertModalOpen(false);
     } else {
       toast.error(`Error al revertir: ${result.error}`);
@@ -310,21 +305,6 @@ function App() {
           <p style={{ marginBottom: '1.25rem', color: 'var(--text-main)', fontSize: '0.9rem' }}>
             ¿Estás seguro de que deseas cerrar el mes de <strong>{selectedMonth?.name}</strong> y crear el nuevo mes de facturación?
           </p>
-          
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label>Entidad a Cerrar</label>
-            <select
-              className="input"
-              value={closeEntity}
-              onChange={e => setCloseEntity(e.target.value)}
-              disabled={closing}
-              style={{ width: '100%' }}
-            >
-              <option value="ALL">Todas las Entidades (Cierre Completo)</option>
-              <option value="ING">Solo ING (Pensión - Día 25)</option>
-              <option value="CAIXABANK">Solo CAIXABANK (Nómina - Fin de Mes)</option>
-            </select>
-          </div>
 
           <div style={{ 
             background: 'var(--bg-main)', 
@@ -336,25 +316,9 @@ function App() {
             border: '1px solid var(--border)'
           }}>
             <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              {closeEntity === 'ALL' ? (
-                <>
-                  <li>Los saldos actuales se traspasarán como saldos iniciales del nuevo mes.</li>
-                  <li>Se duplicará la plantilla de gastos mensuales de todas las entidades.</li>
-                  <li>Los estados de pago se resetearán a <strong>"Pendiente"</strong> (salvo los gastos "No aplica").</li>
-                </>
-              ) : closeEntity === 'ING' ? (
-                <>
-                  <li>Se clonarán únicamente los gastos pertenecientes a <strong>ING</strong> al nuevo mes.</li>
-                  <li>Se traspasarán únicamente los saldos de <strong>ING (Nómina y Naranja)</strong>.</li>
-                  <li>Los gastos de CaixaBank continuarán en el mes actual hasta su cobro a fin de mes.</li>
-                </>
-              ) : (
-                <>
-                  <li>Se clonarán únicamente los gastos pertenecientes a <strong>CAIXABANK</strong>.</li>
-                  <li>Se traspasará el saldo de <strong>CaixaBank</strong>.</li>
-                  <li>Si ING se cerró previamente, estos gastos se unirán al nuevo mes ya existente.</li>
-                </>
-              )}
+              <li>Los saldos actuales se traspasarán como saldos iniciales del nuevo mes.</li>
+              <li>Se duplicará la plantilla de gastos mensuales de todas las entidades.</li>
+              <li>Los estados de pago se resetearán a <strong>"Pendiente"</strong> (salvo los gastos "No aplica").</li>
             </ul>
           </div>
 
@@ -387,21 +351,6 @@ function App() {
           <p style={{ marginBottom: '1.25rem', color: 'var(--text-main)', fontSize: '0.9rem' }}>
             ¿Estás seguro de que deseas eliminar el mes de <strong>{selectedMonth?.name}</strong> y volver a abrir <strong>{closedMonthToReopen?.name}</strong>?
           </p>
-          
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label>Entidad a Revertir</label>
-            <select
-              className="input"
-              value={revertEntity}
-              onChange={e => setRevertEntity(e.target.value)}
-              disabled={reverting}
-              style={{ width: '100%' }}
-            >
-              <option value="ALL">Todas las Entidades (Reversión Completa)</option>
-              <option value="ING">Solo ING</option>
-              <option value="CAIXABANK">Solo CAIXABANK</option>
-            </select>
-          </div>
 
           <div style={{ 
             background: 'var(--btn-danger-bg)', 
@@ -413,7 +362,7 @@ function App() {
             border: '1px solid var(--btn-danger-border)',
             fontWeight: 500
           }}>
-            Esta acción revertirá los gastos y saldos registrados en {selectedMonth?.name} para {revertEntity === 'ALL' ? 'todas las entidades' : revertEntity}.
+            Esta acción eliminará todos los gastos y saldos de {selectedMonth?.name} y reabrirá el mes de {closedMonthToReopen?.name}.
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
