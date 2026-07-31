@@ -10,8 +10,8 @@ const normalizeString = (str) => {
     .trim();
 };
 
-const isLoanMatching = (concept, loanId, loan) => {
-  if (loanId === loan.id) return true;
+export const isLoanMatching = (concept, loanId, loan) => {
+  if (loanId) return loanId === loan.id;
   const cleanConcept = normalizeString(concept);
   const cleanEntidad = normalizeString(loan.entidad);
   if (!cleanConcept || !cleanEntidad) return false;
@@ -19,14 +19,22 @@ const isLoanMatching = (concept, loanId, loan) => {
     (cleanConcept.includes('prestamo') && cleanConcept.includes(cleanEntidad));
 };
 
-const isCardMatching = (concept, cardId, card) => {
-  if (cardId === card.id) return true;
+export const isCardMatching = (concept, cardId, card) => {
+  if (cardId) return cardId === card.id;
   const cleanConcept = normalizeString(concept);
   const cleanTarjeta = normalizeString(card.tarjeta);
   if (!cleanConcept || !cleanTarjeta) return false;
-  return cleanConcept === cleanTarjeta || 
-    cleanConcept.includes(cleanTarjeta) || 
-    cleanTarjeta.includes(cleanConcept);
+
+  if (cleanConcept === cleanTarjeta || cleanConcept.includes(cleanTarjeta) || cleanTarjeta.includes(cleanConcept)) {
+    return true;
+  }
+
+  // Fallbacks para denominaciones habituales
+  if (cleanConcept.includes('visa classic') && cleanTarjeta.includes('visa caixabank')) return true;
+  if (cleanConcept.includes('caixabank paym') && cleanTarjeta.includes('visa caixabank')) return true;
+  if (cleanConcept.includes('mastercard ing') && cleanTarjeta.includes('visa ing')) return true;
+
+  return false;
 };
 
 const isEntityMatch = (expenseEntity, targetEntity) => {
@@ -423,19 +431,53 @@ export const useStore = create((set, get) => ({
         }
       }
 
-      // 4. Clone expenses & update loan baselines
+      // 4. Clone expenses & update loan and card baselines
       if (currentExpenses && currentExpenses.length > 0) {
-        const { loans } = get();
+        const { loans, cards } = get();
+
+        const loanPaidCounts = {};
+        const cardPaidTotals = {};
+
         for (const exp of currentExpenses) {
           if (exp.estado === 'P') {
-            const { loanId, concept } = getLinkInfo(exp.concepto);
+            const { loanId, cardId, concept } = getLinkInfo(exp.concepto);
+            
             const resolvedLoan = loans.find(l => isLoanMatching(concept, loanId, l));
-
             if (resolvedLoan) {
-              const nextFaltan = Math.max(0, resolvedLoan.faltan - 1);
-              const nextPendiente = nextFaltan * resolvedLoan.cuota;
-              await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', resolvedLoan.id);
+              loanPaidCounts[resolvedLoan.id] = (loanPaidCounts[resolvedLoan.id] || 0) + 1;
             }
+
+            const resolvedCard = cards.find(c => isCardMatching(concept, cardId, c));
+            if (resolvedCard) {
+              cardPaidTotals[resolvedCard.id] = (cardPaidTotals[resolvedCard.id] || 0) + exp.importe;
+            }
+          }
+        }
+
+        // Apply Loan updates to Supabase
+        for (const loan of loans) {
+          const paidCount = loanPaidCounts[loan.id] || 0;
+          if (paidCount > 0) {
+            const nextFaltan = Math.max(0, loan.faltan - paidCount);
+            const nextPendiente = nextFaltan * loan.cuota;
+            await supabase
+              .from('loans')
+              .update({ faltan: nextFaltan, pendiente: nextPendiente })
+              .eq('id', loan.id);
+          }
+        }
+
+        // Apply Card updates to Supabase
+        for (const card of cards) {
+          const paidAmount = cardPaidTotals[card.id] || 0;
+          if (paidAmount > 0) {
+            const nextPendiente = Math.max(0, card.pendiente - paidAmount);
+            const nextDisponible = card.credito - nextPendiente;
+            const nextCuota = Math.min(card.cuota, nextPendiente);
+            await supabase
+              .from('cards')
+              .update({ pendiente: nextPendiente, disponible: nextDisponible, cuota: nextCuota })
+              .eq('id', card.id);
           }
         }
 
@@ -472,22 +514,56 @@ export const useStore = create((set, get) => ({
   revertMonthClose: async (monthToDeleteId, monthToReopenId) => {
     set({ loading: true });
     try {
-      // Revert paid loan increments before deleting expenses
-      const { loans } = get();
+      // Revert paid loan increments and card deductions before deleting expenses
+      const { loans, cards } = get();
       const { data: monthExpenses } = await supabase
         .from('expenses')
         .select('*')
         .eq('month_id', monthToDeleteId);
 
+      const loanPaidCounts = {};
+      const cardPaidTotals = {};
+
       for (const exp of (monthExpenses || [])) {
         if (exp.estado === 'P') {
-          const { loanId, concept } = getLinkInfo(exp.concepto);
+          const { loanId, cardId, concept } = getLinkInfo(exp.concepto);
+          
           const resolvedLoan = loans.find(l => isLoanMatching(concept, loanId, l));
           if (resolvedLoan) {
-            const nextFaltan = resolvedLoan.faltan + 1;
-            const nextPendiente = nextFaltan * resolvedLoan.cuota;
-            await supabase.from('loans').update({ faltan: nextFaltan, pendiente: nextPendiente }).eq('id', resolvedLoan.id);
+            loanPaidCounts[resolvedLoan.id] = (loanPaidCounts[resolvedLoan.id] || 0) + 1;
           }
+
+          const resolvedCard = cards.find(c => isCardMatching(concept, cardId, c));
+          if (resolvedCard) {
+            cardPaidTotals[resolvedCard.id] = (cardPaidTotals[resolvedCard.id] || 0) + exp.importe;
+          }
+        }
+      }
+
+      // Revert Loans in Supabase
+      for (const loan of loans) {
+        const paidCount = loanPaidCounts[loan.id] || 0;
+        if (paidCount > 0) {
+          const nextFaltan = loan.faltan + paidCount;
+          const nextPendiente = nextFaltan * loan.cuota;
+          await supabase
+            .from('loans')
+            .update({ faltan: nextFaltan, pendiente: nextPendiente })
+            .eq('id', loan.id);
+        }
+      }
+
+      // Revert Cards in Supabase
+      for (const card of cards) {
+        const paidAmount = cardPaidTotals[card.id] || 0;
+        if (paidAmount > 0) {
+          const nextPendiente = card.pendiente + paidAmount;
+          const nextDisponible = card.credito - nextPendiente;
+          const nextCuota = Math.min(card.cuota, nextPendiente);
+          await supabase
+            .from('cards')
+            .update({ pendiente: nextPendiente, disponible: nextDisponible, cuota: nextCuota })
+            .eq('id', card.id);
         }
       }
 

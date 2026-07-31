@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore } from '../store/useStore';
+import { useStore, isLoanMatching, isCardMatching } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo } from '../utils';
 import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
 import CurrencyValue from './ui/CurrencyValue';
@@ -362,13 +362,28 @@ export default function ExpensesList() {
             <tbody>
               {displayedExpenses.map(expense => {
                 const isEditing = inlineEditingId === expense.id;
+                const linkInfo = getLinkInfo(expense.concepto);
+                const linkedLoan = linkInfo.loanId ? loans.find(l => l.id === linkInfo.loanId) : loans.find(l => isLoanMatching(linkInfo.concept, null, l));
+                const linkedCard = linkInfo.cardId ? cards.find(c => c.id === linkInfo.cardId) : cards.find(c => isCardMatching(linkInfo.concept, null, c));
                 
                 return (
                   <tr key={expense.id} onDoubleClick={() => !isEditing && startInlineEditing(expense)}>
                     {isEditing ? (
                       <>
                         <td><input type="number" className="input" style={{ width: '60px', padding: '0.25rem' }} value={inlineForm.dia} onChange={e => setInlineForm({...inlineForm, dia: parseIntNum(e.target.value)})} min="1" max="31" onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
-                        <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineForm.concepto} onChange={e => setInlineForm({...inlineForm, concepto: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
+                        <td>
+                          <input type="text" className="input" style={{ width: '100%', padding: '0.25rem', marginBottom: '0.25rem' }} value={inlineForm.concepto} onChange={e => setInlineForm({...inlineForm, concepto: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} />
+                          <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', flexWrap: 'wrap' }}>
+                            <select className="input" style={{ padding: '0.1rem 0.25rem', fontSize: '0.75rem' }} value={inlineForm.loanId || ''} onChange={e => setInlineForm({ ...inlineForm, loanId: e.target.value, cardId: '' })}>
+                              <option value="">(Sin Préstamo)</option>
+                              {loans.map(l => <option key={l.id} value={l.id}>🏦 {l.entidad}</option>)}
+                            </select>
+                            <select className="input" style={{ padding: '0.1rem 0.25rem', fontSize: '0.75rem' }} value={inlineForm.cardId || ''} onChange={e => setInlineForm({ ...inlineForm, cardId: e.target.value, loanId: '' })}>
+                              <option value="">(Sin Tarjeta)</option>
+                              {cards.map(c => <option key={c.id} value={c.id}>💳 {c.tarjeta}</option>)}
+                            </select>
+                          </div>
+                        </td>
                         <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineForm.importe} onChange={e => setInlineForm({...inlineForm, importe: normalizeDecimalInput(e.target.value)})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
                         <td>
                           <select className="input" style={{ padding: '0.25rem' }} value={inlineForm.entidad} onChange={e => setInlineForm({...inlineForm, entidad: e.target.value})}>
@@ -396,7 +411,21 @@ export default function ExpensesList() {
                     ) : (
                       <>
                         <td style={{ fontWeight: 600 }}>{expense.dia}</td>
-                        <td>{getLinkInfo(expense.concepto).concept}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <span>{linkInfo.concept}</span>
+                            {linkedLoan && (
+                              <span style={{ fontSize: '0.75rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '0.15rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }} title={`Vinculado a Préstamo: ${linkedLoan.entidad}`}>
+                                🏦 {linkedLoan.entidad}
+                              </span>
+                            )}
+                            {linkedCard && (
+                              <span style={{ fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.15)', color: '#f472b6', padding: '0.15rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(236, 72, 153, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }} title={`Vinculado a Tarjeta: ${linkedCard.tarjeta}`}>
+                                💳 {linkedCard.tarjeta}
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td><CurrencyValue value={expense.importe} /></td>
                         <td>
                           <select 
