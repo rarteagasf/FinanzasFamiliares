@@ -72,13 +72,16 @@ export default function ExpensesList() {
   const openExpenseModal = (expense = null) => {
     if (expense) {
       setEditingExpense(expense);
-      const { concept, loanId, cardId } = getLinkInfo(expense.concepto);
+      const linkInfo = getLinkInfo(expense.concepto);
+      const resolvedLoan = linkInfo.loanId ? loans.find(l => l.id === linkInfo.loanId) : loans.find(l => isLoanMatching(linkInfo.concept, null, l));
+      const resolvedCard = linkInfo.cardId ? cards.find(c => c.id === linkInfo.cardId) : cards.find(c => isCardMatching(linkInfo.concept, null, c));
+
       setFormData({
         ...expense,
-        concepto: concept,
+        concepto: linkInfo.concept,
         importe: formatInputDecimal(expense.importe),
-        loanId: loanId || '',
-        cardId: cardId || ''
+        loanId: linkInfo.loanId || resolvedLoan?.id || '',
+        cardId: linkInfo.cardId || resolvedCard?.id || ''
       });
     } else {
       setEditingExpense(null);
@@ -169,12 +172,15 @@ export default function ExpensesList() {
   // --- Inline Editing Logic ---
   const startInlineEditing = (expense) => {
     setInlineEditingId(expense.id);
-    const { concept, loanId, cardId } = getLinkInfo(expense.concepto);
+    const linkInfo = getLinkInfo(expense.concepto);
+    const resolvedLoan = linkInfo.loanId ? loans.find(l => l.id === linkInfo.loanId) : loans.find(l => isLoanMatching(linkInfo.concept, null, l));
+    const resolvedCard = linkInfo.cardId ? cards.find(c => c.id === linkInfo.cardId) : cards.find(c => isCardMatching(linkInfo.concept, null, c));
+
     setInlineForm({
       ...expense,
-      concepto: concept,
-      loanId: loanId || '',
-      cardId: cardId || '',
+      concepto: linkInfo.concept,
+      loanId: linkInfo.loanId || resolvedLoan?.id || '',
+      cardId: linkInfo.cardId || resolvedCard?.id || '',
       importe: formatInputDecimal(expense.importe)
     });
   };
