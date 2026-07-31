@@ -376,14 +376,14 @@ export const useStore = create((set, get) => ({
         newMonth = createdMonth;
       }
 
-      // Close current month
+      // Close all other months to ensure only newMonth is open
       const { error: closeMonthError } = await supabase
         .from('months')
         .update({ status: 'closed' })
-        .eq('id', currentMonthId);
+        .neq('id', newMonth.id);
       
       if (closeMonthError) {
-        throw new Error('Error al cerrar el mes actual: ' + closeMonthError.message);
+        throw new Error('Error al cerrar los meses anteriores: ' + closeMonthError.message);
       }
 
       // 2. Fetch expenses of current month
