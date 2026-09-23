@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Send, Bot, User, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Key, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import Modal from './ui/Modal';
 
 // Helper to parse simple markdown to JSX safely
 function parseBoldAndCode(text) {
@@ -67,8 +68,17 @@ function renderMarkdown(text) {
   });
 }
 
+const getStoredApiKey = () => {
+  return localStorage.getItem('groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '';
+};
+
 export default function AIChat() {
   const { exportAllData } = useStore();
+  const [apiKey, setApiKey] = useState(getStoredApiKey);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [inputKey, setInputKey] = useState('');
+  const [showKeyText, setShowKeyText] = useState(false);
+
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -158,6 +168,24 @@ export default function AIChat() {
     }
   };
 
+  const handleSaveKey = (e) => {
+    e.preventDefault();
+    const trimmed = inputKey.trim();
+    if (trimmed) {
+      localStorage.setItem('groq_api_key', trimmed);
+      setApiKey(trimmed);
+      toast.success('Clave API de Groq guardada correctamente');
+      setIsKeyModalOpen(false);
+      setInputKey('');
+    } else {
+      localStorage.removeItem('groq_api_key');
+      setApiKey(import.meta.env.VITE_GROQ_API_KEY || '');
+      toast.info('Se restableció la configuración predeterminada');
+      setIsKeyModalOpen(false);
+      setInputKey('');
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
@@ -167,15 +195,15 @@ export default function AIChat() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-    if (!apiKey) {
+    const activeApiKey = (apiKey || getStoredApiKey() || '').trim();
+    if (!activeApiKey) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: '⚠️ **Error de configuración**: No se ha encontrado la clave API de Groq en las variables de entorno (`VITE_GROQ_API_KEY`). Por favor, configúrala en tu archivo `.env.local` y reinicia el servidor de desarrollo.'
+        content: '⚠️ **Falta la clave API de Groq**: Para consultar al asistente, introduce tu clave API pulsando en el botón **Configurar Clave** arriba o agrégala a las variables de entorno de tu proyecto en Vercel (`VITE_GROQ_API_KEY`).'
       }]);
+      setIsKeyModalOpen(true);
       setLoading(false);
       return;
-      
     }
 
     try {
@@ -202,7 +230,7 @@ Instrucciones importantes:
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${activeApiKey}`
         },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
@@ -216,8 +244,16 @@ Instrucciones importantes:
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData?.error?.message || 'Error al conectar con Groq');
+        const errData = await response.json().catch(() => null);
+        const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
+
+        if (response.status === 401) {
+          throw new Error('Clave API no válida o expirada. Pulsa en "Configurar Clave" para revisarla o actualizarla.');
+        }
+        if (serverMsg.includes('network settings') || serverMsg.includes('Access denied')) {
+          throw new Error('Groq ha denegado la conexión (bloqueo de red o Cloudflare). Si tienes una VPN activa (como Surfshark), desactívala temporalmente.');
+        }
+        throw new Error(serverMsg);
       }
 
       const resData = await response.json();
@@ -229,7 +265,7 @@ Instrucciones importantes:
       toast.error('Error al consultar el asistente de IA');
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `❌ **Error de comunicación**: Hubo un problema al procesar tu solicitud.\nDetalle: \`${err.message}\``
+        content: `❌ **Error al consultar el asistente**: ${err.message}`
       }]);
     } finally {
       setLoading(false);
@@ -252,11 +288,64 @@ Instrucciones importantes:
               <span className="subtitle">Groq Llama 3.3 70B</span>
             </div>
           </div>
-          <div className="chat-badge">
-            <Sparkles size={14} />
-            <span>Inteligente</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.75rem',
+                padding: '0.35rem 0.65rem',
+                borderRadius: '8px',
+                border: apiKey ? '1px solid var(--border)' : '1px solid #f59e0b',
+                color: apiKey ? 'var(--text-main)' : '#f59e0b'
+              }}
+              onClick={() => {
+                setInputKey(localStorage.getItem('groq_api_key') || '');
+                setIsKeyModalOpen(true);
+              }}
+              title="Configurar clave API de Groq"
+            >
+              <Key size={14} style={{ color: apiKey ? 'var(--primary)' : '#f59e0b' }} />
+              <span>{apiKey ? 'API Key activa' : 'Configurar Clave'}</span>
+            </button>
+            <div className="chat-badge">
+              <Sparkles size={14} />
+              <span>Inteligente</span>
+            </div>
           </div>
         </div>
+
+        {!apiKey && (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.1)',
+            borderBottom: '1px solid rgba(245, 158, 11, 0.25)',
+            padding: '0.65rem 1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            fontSize: '0.825rem',
+            color: 'var(--text-main)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Key size={15} style={{ color: '#f59e0b', flexShrink: 0 }} />
+              <span>No se ha detectado una clave API de Groq en este dispositivo.</span>
+            </div>
+            <button
+              className="btn btn-primary"
+              style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+              onClick={() => {
+                setInputKey(localStorage.getItem('groq_api_key') || '');
+                setIsKeyModalOpen(true);
+              }}
+            >
+              Configurar clave
+            </button>
+          </div>
+        )}
 
         <div className="chat-history">
           {messages.map((msg, index) => (
@@ -271,7 +360,7 @@ Instrucciones importantes:
               </div>
             </div>
           ))}
-          
+
           {loading && (
             <div className="message-row assistant loading-row">
               <div className="avatar">
@@ -322,6 +411,114 @@ Instrucciones importantes:
           </button>
         </form>
       </div>
+
+      <Modal
+        isOpen={isKeyModalOpen}
+        onClose={() => setIsKeyModalOpen(false)}
+        title="Configurar API Key de Groq"
+      >
+        <form onSubmit={handleSaveKey}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+            Para interactuar con el asistente financiero, necesitas una clave de API de Groq (gratuita en <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>console.groq.com/keys</a>).
+          </p>
+
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>
+              <span>Clave API (gsk_...)</span>
+              {apiKey && (
+                <span style={{ color: 'var(--success)', fontWeight: 500, fontSize: '0.75rem' }}>
+                  ✓ Clave configurada
+                </span>
+              )}
+            </label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showKeyText ? 'text' : 'password'}
+                className="input"
+                placeholder={apiKey ? '••••••••••••••••••••••••••••••••' : 'gsk_...'}
+                value={inputKey}
+                onChange={e => setInputKey(e.target.value)}
+                style={{ paddingRight: '2.5rem', fontFamily: showKeyText ? 'monospace' : 'inherit' }}
+                autoFocus
+              />
+              <button
+                type="button"
+                style={{
+                  position: 'absolute',
+                  right: '0.5rem',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '0.25rem'
+                }}
+                onClick={() => setShowKeyText(!showKeyText)}
+                title={showKeyText ? 'Ocultar' : 'Mostrar'}
+              >
+                {showKeyText ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block' }}>
+              {localStorage.getItem('groq_api_key')
+                ? 'Actualmente usando una clave guardada en este navegador.'
+                : import.meta.env.VITE_GROQ_API_KEY
+                ? 'Actualmente usando la clave de variables de entorno del sistema.'
+                : 'Introduce tu clave personal para usar el chat en este navegador.'}
+            </span>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-main)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.5rem',
+            fontSize: '0.8rem',
+            color: 'var(--text-muted)',
+            lineHeight: '1.4'
+          }}>
+            <p style={{ margin: 0 }}>
+              💡 <strong>Configuración en Vercel</strong>: Si deseas que esté disponible automáticamente en todos tus dispositivos sin tener que escribirla aquí, añade la variable <code>VITE_GROQ_API_KEY</code> en la configuración de Vercel y haz un Redeploy.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+            {localStorage.getItem('groq_api_key') ? (
+              <button
+                type="button"
+                className="btn btn-danger"
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                onClick={() => {
+                  localStorage.removeItem('groq_api_key');
+                  setApiKey(import.meta.env.VITE_GROQ_API_KEY || '');
+                  setInputKey('');
+                  toast.info('Clave de navegador eliminada');
+                  setIsKeyModalOpen(false);
+                }}
+              >
+                Eliminar clave
+              </button>
+            ) : <div />}
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsKeyModalOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={!inputKey.trim() && !localStorage.getItem('groq_api_key')}
+              >
+                Guardar clave
+              </button>
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
