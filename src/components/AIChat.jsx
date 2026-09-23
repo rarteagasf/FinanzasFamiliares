@@ -120,69 +120,65 @@ export default function AIChat() {
     try {
       setStatusMessage('Recopilando datos financieros...');
       const data = await exportAllData();
-      
-      // We map and group information to make it super digestible for the model
+
       const monthsMap = {};
       (data.months || []).forEach(m => {
         monthsMap[m.id] = m;
       });
 
-      const formattedExpenses = (data.expenses || []).map(e => {
-        const monthName = monthsMap[e.month_id]?.name || 'Desconocido';
-        return {
-          mes: monthName,
-          dia: e.dia,
-          concepto: e.concepto,
-          importe: `${e.importe} €`,
-          entidad: e.entidad,
-          estado: e.estado === 'P' ? 'Pagado' : e.estado === 'X' ? 'Pendiente' : 'No aplica'
-        };
-      });
+      // 1. Months list
+      const monthsList = (data.months || [])
+        .map(m => `${m.name} (${m.status === 'open' ? 'Actual' : 'Cerrado'})`)
+        .join(', ');
 
-      const formattedBalances = (data.balances || []).map(b => {
-        const monthName = monthsMap[b.month_id]?.name || 'Desconocido';
-        return {
-          mes: monthName,
-          saldos: {
-            caixabank: `${b.caixabank} €`,
-            hucha: `${b.hucha} €`,
-            ing_nomina: `${b.ing_nomina} €`,
-            ing_naranja: `${b.ing_naranja} €`
-          }
-        };
-      });
+      // 2. Balances summary
+      const balancesList = (data.balances || []).map(b => {
+        const mName = monthsMap[b.month_id]?.name || 'Mes';
+        return `- ${mName}: CaixaBank ${b.caixabank}€ | ING Nómina ${b.ing_nomina}€ | ING Naranja ${b.ing_naranja}€ | Hucha ${b.hucha}€`;
+      }).join('\n');
 
-      const formattedLoans = (data.loans || []).map(l => ({
-        entidad: l.entidad,
-        capital_inicial: `${l.capital_inicial} €`,
-        total_a_pagar: `${l.total_a_pagar} €`,
-        interes: `${l.interes}%`,
-        cuota_mensual: `${l.cuota} €`,
-        cuotas_restantes: l.faltan,
-        pendiente: `${l.pendiente} €`,
-        fecha_inicial: l.fecha_inicial,
-        fecha_final: l.fecha_final
-      }));
+      // 3. Loans summary
+      const loansList = (data.loans || []).map(l => {
+        return `- ${l.entidad}: Pendiente ${l.pendiente}€ | Cuota ${l.cuota}€/mes | Faltan ${l.faltan} cuotas | Total ${l.total_a_pagar}€ | Interés ${l.interes}%`;
+      }).join('\n');
 
-      const formattedCards = (data.cards || []).map(c => ({
-        tarjeta: c.tarjeta,
-        credito: `${c.credito} €`,
-        proximo_recibo: `${c.cuota} €`,
-        pendiente: `${c.pendiente} €`,
-        disponible: `${c.disponible} €`
-      }));
+      // 4. Cards summary
+      const cardsList = (data.cards || []).map(c => {
+        return `- ${c.tarjeta}: Crédito ${c.credito}€ | Próx. Recibo ${c.cuota}€ | Pendiente ${c.pendiente}€ | Disponible ${c.disponible}€`;
+      }).join('\n');
 
-      return {
-        meses: (data.months || []).map(m => ({ nombre: m.name, estado: m.status })),
-        entidades: (data.entities || []).map(e => e.name),
-        balances_mensuales: formattedBalances,
-        prestamos: formattedLoans,
-        tarjetas: formattedCards,
-        gastos: formattedExpenses
-      };
+      // 5. Expenses summary (compact pipe-delimited format, capped at 120 items to stay strictly under rate limits)
+      const allExpenses = [...(data.expenses || [])].reverse();
+      const cappedExpenses = allExpenses.slice(0, 120);
+      const expensesList = cappedExpenses.map(e => {
+        const mName = monthsMap[e.month_id]?.name || '-';
+        const st = e.estado === 'P' ? 'Pagado' : e.estado === 'X' ? 'Pendiente' : 'N/A';
+        return `${mName} | Día ${e.dia} | ${e.concepto} | ${e.importe}€ | ${e.entidad} | ${st}`;
+      }).join('\n');
+
+      const truncatedNotice = allExpenses.length > 120
+        ? `\n*(Mostrando los últimos 120 gastos de ${allExpenses.length} para optimización de tokens)*`
+        : '';
+
+      return `## DATOS FINANCIEROS ACTUALIZADOS:
+
+### MESES:
+${monthsList || 'Sin meses registrados'}
+
+### SALDOS POR MES:
+${balancesList || 'Sin saldos registrados'}
+
+### PRÉSTAMOS ACTIVOS:
+${loansList || 'Sin préstamos'}
+
+### TARJETAS DE CRÉDITO:
+${cardsList || 'Sin tarjetas'}
+
+### GASTOS REGISTRADOS (Mes | Día | Concepto | Importe | Entidad | Estado):
+${expensesList || 'Sin gastos'}${truncatedNotice}`;
     } catch (err) {
       console.error('Error al generar contexto financiero:', err);
-      return null;
+      return '';
     }
   };
 
@@ -229,24 +225,26 @@ export default function AIChat() {
     }
 
     try {
-      const financeData = await getFinanceContext();
+      const financeText = await getFinanceContext();
       setStatusMessage('Analizando finanzas con Groq...');
 
-      const systemPrompt = `Eres un asistente de finanzas personales inteligente, analítico y servicial. Tienes acceso completo a la base de datos de finanzas de la familia en formato JSON.
-Tus respuestas deben ser claras, concisas, profesionales y usar formato Markdown (como negritas, listas y tablas si es conveniente) para facilitar la lectura.
+      const systemPrompt = `Eres un asistente de finanzas personales inteligente, analítico y servicial. Tienes acceso completo a la base de datos de finanzas familiares.
+Tus respuestas deben ser claras, concisas, profesionales y usar formato Markdown (negritas, listas o tablas si conviene) para facilitar la lectura.
 
-A continuación, tienes la información financiera actualizada de la familia:
-\`\`\`json
-${JSON.stringify(financeData, null, 2)}
-\`\`\`
+${financeText}
 
 Instrucciones importantes:
-1. Responde en español de forma natural y clara.
+1. Responde en español de forma natural, concisa y clara.
 2. Si te preguntan sobre totales, sumas o cálculos, hazlos con precisión matemática basándote en los datos recibidos.
-3. Si el usuario te pregunta por gastos, analiza el campo "gastos" que tiene el "mes", "dia", "concepto", "importe", "entidad" y "estado".
-4. "Pendiente" significa que el gasto está planificado pero no se ha cobrado todavía de la cuenta bancaria. "Pagado" significa que ya se ha deducido.
-5. Puedes recomendar consejos de ahorro, optimización de presupuesto, alertar sobre deudas o dar respuestas a consultas históricas.
-6. Sé muy educado, servicial e inteligente.`;
+3. En el detalle de gastos: "Pendiente" significa que el gasto está planificado pero no se ha cobrado todavía de la cuenta. "Pagado" significa que ya se ha deducido.
+4. Puedes recomendar consejos de ahorro, optimización de presupuesto, alertar sobre deudas o dar respuestas a consultas históricas.
+5. Sé muy educado, servicial e inteligente.`;
+
+      // Keep only last 4 messages, discarding errors, to stay well below Groq TPM limits
+      const cleanHistory = messages
+        .filter(msg => msg.role !== 'system' && !msg.content.startsWith('❌') && !msg.content.startsWith('⚠️'))
+        .slice(-4)
+        .map(msg => ({ role: msg.role, content: msg.content }));
 
       const makeGroqRequest = async (modelToUse) => {
         return await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -259,10 +257,11 @@ Instrucciones importantes:
             model: modelToUse,
             messages: [
               { role: 'system', content: systemPrompt },
-              ...messages.filter(msg => msg.role !== 'system').map(msg => ({ role: msg.role, content: msg.content })),
+              ...cleanHistory,
               { role: 'user', content: userMessage }
             ],
-            temperature: 0.3
+            temperature: 0.3,
+            max_tokens: 1500
           })
         });
       };
@@ -287,6 +286,8 @@ Instrucciones importantes:
           setSelectedModel(fallbackModel);
           localStorage.setItem('groq_model', fallbackModel);
           response = await makeGroqRequest(fallbackModel);
+        } else if (response.status === 429 || serverMsg.includes('TPM') || serverMsg.includes('Tokens Per Minute') || serverMsg.includes('Request too large')) {
+          throw new Error('Límite de tokens por minuto (TPM) alcanzado en el plan gratuito de Groq. Espera unos segundos y vuelve a intentarlo.');
         } else {
           if (response.status === 401) {
             throw new Error('Clave API no válida o expirada. Pulsa en "Configurar Clave" para revisarla o actualizarla.');
