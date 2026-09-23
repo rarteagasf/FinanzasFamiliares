@@ -341,4 +341,57 @@
   padding: 0.35rem 0.75rem;
 }
 
+/* Chat Markdown Formatting (Tables, Lists, Typography) */
+.chat-table-container {
+  overflow-x: auto;
+  margin: 0.85rem 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.chat-table th {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  font-weight: 600;
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.chat-table td {
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.chat-table tr:last-child td {
+  border-bottom: none;
+}
+
+.chat-table tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.chat-list {
+  margin: 0.4rem 0 0.8rem 1.4rem;
+  padding: 0;
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+.chat-list li {
+  margin-bottom: 0.35rem;
+}
+
+
 

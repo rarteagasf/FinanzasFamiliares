@@ -39,33 +39,142 @@ function parseBoldAndCode(text) {
 function renderMarkdown(text) {
   if (!text) return '';
   const lines = text.split('\n');
-  return lines.map((line, idx) => {
-    let content = line;
-    
-    if (content.startsWith('### ')) {
-      return <h4 key={idx} style={{ marginTop: '1.2rem', marginBottom: '0.6rem', fontWeight: 600, color: 'var(--text-main)' }}>{parseBoldAndCode(content.slice(4))}</h4>;
+  const elements = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Markdown Table detection (starts and ends with '|')
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      if (tableLines.length >= 2) {
+        const headerCells = tableLines[0].slice(1, -1).split('|').map(c => c.trim());
+        const dataRows = [];
+        for (let r = 1; r < tableLines.length; r++) {
+          if (/^\|[\s\-:|]+\|$/.test(tableLines[r])) continue; // separator row |---|---|
+          dataRows.push(tableLines[r].slice(1, -1).split('|').map(c => c.trim()));
+        }
+
+        elements.push(
+          <div key={`table-${i}`} className="chat-table-container">
+            <table className="chat-table">
+              <thead>
+                <tr>
+                  {headerCells.map((h, hIdx) => (
+                    <th key={hIdx}>{parseBoldAndCode(h)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dataRows.map((row, rIdx) => (
+                  <tr key={rIdx}>
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx}>{parseBoldAndCode(cell)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
     }
-    if (content.startsWith('## ')) {
-      return <h3 key={idx} style={{ marginTop: '1.5rem', marginBottom: '0.75rem', fontWeight: 700, color: 'var(--text-main)', borderBottom: '1px solid var(--border)', paddingBottom: '0.25rem' }}>{parseBoldAndCode(content.slice(3))}</h3>;
+
+    // Unordered list (* or -)
+    if (/^[\*\-]\s/.test(line.trim())) {
+      const items = [];
+      const startIdx = i;
+      while (i < lines.length && /^[\*\-]\s/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[\*\-]\s+/, ''));
+        i++;
+      }
+      elements.push(
+        <ul key={`ul-${startIdx}`} className="chat-list">
+          {items.map((item, idx) => (
+            <li key={idx}>{parseBoldAndCode(item)}</li>
+          ))}
+        </ul>
+      );
+      continue;
     }
-    if (content.startsWith('# ')) {
-      return <h2 key={idx} style={{ marginTop: '1.8rem', marginBottom: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{parseBoldAndCode(content.slice(2))}</h2>;
+
+    // Ordered list (1. 2.)
+    if (/^\d+\.\s/.test(line.trim())) {
+      const items = [];
+      const startIdx = i;
+      while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s+/, ''));
+        i++;
+      }
+      elements.push(
+        <ol key={`ol-${startIdx}`} className="chat-list" style={{ listStyleType: 'decimal' }}>
+          {items.map((item, idx) => (
+            <li key={idx}>{parseBoldAndCode(item)}</li>
+          ))}
+        </ol>
+      );
+      continue;
     }
-    if (content.startsWith('- ') || content.startsWith('* ')) {
-      return <li key={idx} style={{ marginLeft: '1.5rem', marginBottom: '0.35rem', color: 'var(--text-main)' }}>{parseBoldAndCode(content.slice(2))}</li>;
+
+    // Headings
+    if (line.startsWith('### ')) {
+      elements.push(
+        <h4 key={`h4-${i}`} style={{ marginTop: '1.1rem', marginBottom: '0.45rem', fontWeight: 600, color: 'var(--text-main)', fontSize: '0.95rem' }}>
+          {parseBoldAndCode(line.slice(4))}
+        </h4>
+      );
+      i++;
+      continue;
     }
-    if (/^\d+\.\s/.test(content)) {
-      const match = content.match(/^\d+\.\s/);
-      return <li key={idx} style={{ marginLeft: '1.5rem', marginBottom: '0.35rem', listStyleType: 'decimal', color: 'var(--text-main)' }}>{parseBoldAndCode(content.slice(match[0].length))}</li>;
+    if (line.startsWith('## ')) {
+      elements.push(
+        <h3 key={`h3-${i}`} style={{ marginTop: '1.25rem', marginBottom: '0.6rem', fontWeight: 700, color: 'var(--text-main)', borderBottom: '1px solid var(--border)', paddingBottom: '0.3rem', fontSize: '1.05rem' }}>
+          {parseBoldAndCode(line.slice(3))}
+        </h3>
+      );
+      i++;
+      continue;
     }
-    if (content.trim() === '---') {
-      return <hr key={idx} style={{ margin: '1.2rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />;
+    if (line.startsWith('# ')) {
+      elements.push(
+        <h2 key={`h2-${i}`} style={{ marginTop: '1.5rem', marginBottom: '0.75rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '1.15rem' }}>
+          {parseBoldAndCode(line.slice(2))}
+        </h2>
+      );
+      i++;
+      continue;
     }
-    if (content.trim() === '') {
-      return <div key={idx} style={{ height: '0.5rem' }} />;
+
+    // Horizontal line
+    if (line.trim() === '---') {
+      elements.push(<hr key={`hr-${i}`} style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />);
+      i++;
+      continue;
     }
-    return <p key={idx} style={{ marginBottom: '0.75rem', lineHeight: '1.6', color: 'var(--text-main)' }}>{parseBoldAndCode(content)}</p>;
-  });
+
+    // Blank line
+    if (line.trim() === '') {
+      elements.push(<div key={`empty-${i}`} style={{ height: '0.35rem' }} />);
+      i++;
+      continue;
+    }
+
+    // Standard paragraph
+    elements.push(
+      <p key={`p-${i}`} style={{ marginBottom: '0.65rem', lineHeight: '1.6', color: 'var(--text-main)' }}>
+        {parseBoldAndCode(line)}
+      </p>
+    );
+    i++;
+  }
+
+  return elements;
 }
 
 const DEFAULT_MODEL = 'openai/gpt-oss-120b';
@@ -229,16 +338,20 @@ ${expensesList || 'Sin gastos'}${truncatedNotice}`;
       setStatusMessage('Analizando finanzas con Groq...');
 
       const systemPrompt = `Eres un asistente de finanzas personales inteligente, analítico y servicial. Tienes acceso completo a la base de datos de finanzas familiares.
-Tus respuestas deben ser claras, concisas, profesionales y usar formato Markdown (negritas, listas o tablas si conviene) para facilitar la lectura.
+
+DIRECTRICES DE PRESENTACIÓN Y LEGIBILIDAD (MUY IMPORTANTE):
+1. Estructura tu respuesta con encabezados claros '### ' para cada área temática (ej.: ### 💰 Resumen General, ### 🏦 Cuentas y Saldos, ### 💳 Préstamos y Deudas, ### 💡 Diagnóstico).
+2. Usa viñetas limpias (- ) destacando siempre en negrita el concepto y la cifra (ej.: - **Saldo Total**: 17.797,65 €).
+3. Si utilizas tablas Markdown, hazlas sencillas y directas (| Concepto | Importe | Estado |). No introduzcas párrafos largos dentro de las celdas; utiliza viñetas explicativas debajo.
+4. Deja espacios limpios entre apartados para que el análisis sea claro, estético y fácil de escanear a primera vista.
 
 ${financeText}
 
-Instrucciones importantes:
-1. Responde en español de forma natural, concisa y clara.
-2. Si te preguntan sobre totales, sumas o cálculos, hazlos con precisión matemática basándote en los datos recibidos.
+Instrucciones de análisis y cálculo:
+1. Responde siempre en español con precisión profesional.
+2. Si te preguntan sobre totales, sumas o cálculos, hazlos con exactitud matemática basándote en los datos recibidos.
 3. En el detalle de gastos: "Pendiente" significa que el gasto está planificado pero no se ha cobrado todavía de la cuenta. "Pagado" significa que ya se ha deducido.
-4. Puedes recomendar consejos de ahorro, optimización de presupuesto, alertar sobre deudas o dar respuestas a consultas históricas.
-5. Sé muy educado, servicial e inteligente.`;
+4. Recomienda consejos útiles de ahorro, optimización de presupuesto o alertas sobre endeudamiento según los datos.`;
 
       // Keep only last 4 messages, discarding errors, to stay well below Groq TPM limits
       const cleanHistory = messages
