@@ -68,6 +68,16 @@ function renderMarkdown(text) {
   });
 }
 
+const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+
+const AVAILABLE_MODELS = [
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Recomendado, gratuito)', desc: 'Ultrarrápido, 131k de contexto, disponible en todas las cuentas.' },
+  { id: 'openai/gpt-oss-120b', name: 'OpenAI GPT-OSS 120B', desc: 'Gran capacidad de razonamiento profundo.' },
+  { id: 'openai/gpt-oss-20b', name: 'OpenAI GPT-OSS 20B', desc: 'Rápido, equilibrado y eficiente.' },
+  { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', desc: 'Alta capacidad matemática y de análisis.' },
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile', desc: 'Requiere plan o acceso específico en Groq.' }
+];
+
 const getStoredApiKey = () => {
   return localStorage.getItem('groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '';
 };
@@ -75,8 +85,12 @@ const getStoredApiKey = () => {
 export default function AIChat() {
   const { exportAllData } = useStore();
   const [apiKey, setApiKey] = useState(getStoredApiKey);
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return localStorage.getItem('groq_model') || DEFAULT_MODEL;
+  });
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [inputKey, setInputKey] = useState('');
+  const [tempModel, setTempModel] = useState(selectedModel);
   const [showKeyText, setShowKeyText] = useState(false);
 
   const [messages, setMessages] = useState([
@@ -174,16 +188,20 @@ export default function AIChat() {
     if (trimmed) {
       localStorage.setItem('groq_api_key', trimmed);
       setApiKey(trimmed);
-      toast.success('Clave API de Groq guardada correctamente');
-      setIsKeyModalOpen(false);
-      setInputKey('');
-    } else {
-      localStorage.removeItem('groq_api_key');
-      setApiKey(import.meta.env.VITE_GROQ_API_KEY || '');
-      toast.info('Se restableció la configuración predeterminada');
-      setIsKeyModalOpen(false);
-      setInputKey('');
     }
+    if (tempModel) {
+      localStorage.setItem('groq_model', tempModel);
+      setSelectedModel(tempModel);
+    }
+    toast.success('Configuración guardada correctamente');
+    setIsKeyModalOpen(false);
+    setInputKey('');
+  };
+
+  const openConfigModal = () => {
+    setInputKey(localStorage.getItem('groq_api_key') || '');
+    setTempModel(selectedModel);
+    setIsKeyModalOpen(true);
   };
 
   const handleSend = async (e) => {
@@ -201,7 +219,7 @@ export default function AIChat() {
         role: 'assistant',
         content: '⚠️ **Falta la clave API de Groq**: Para consultar al asistente, introduce tu clave API pulsando en el botón **Configurar Clave** arriba o agrégala a las variables de entorno de tu proyecto en Vercel (`VITE_GROQ_API_KEY`).'
       }]);
-      setIsKeyModalOpen(true);
+      openConfigModal();
       setLoading(false);
       return;
     }
@@ -226,33 +244,56 @@ Instrucciones importantes:
 5. Puedes recomendar consejos de ahorro, optimización de presupuesto, alertar sobre deudas o dar respuestas a consultas históricas.
 6. Sé muy educado, servicial e inteligente.`;
 
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${activeApiKey}`
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages.filter(msg => msg.role !== 'system').map(msg => ({ role: msg.role, content: msg.content })),
-            { role: 'user', content: userMessage }
-          ],
-          temperature: 0.3
-        })
-      });
+      const makeGroqRequest = async (modelToUse) => {
+        return await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeApiKey}`
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...messages.filter(msg => msg.role !== 'system').map(msg => ({ role: msg.role, content: msg.content })),
+              { role: 'user', content: userMessage }
+            ],
+            temperature: 0.3
+          })
+        });
+      };
 
+      let activeModel = selectedModel;
+      let response = await makeGroqRequest(activeModel);
+
+      // Auto-fallback if the model is retired or not accessible on this key
       if (!response.ok) {
         const errData = await response.json().catch(() => null);
         const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
 
-        if (response.status === 401) {
-          throw new Error('Clave API no válida o expirada. Pulsa en "Configurar Clave" para revisarla o actualizarla.');
+        if (
+          (response.status === 404 || serverMsg.includes('does not exist') || serverMsg.includes('do not have access')) &&
+          activeModel !== DEFAULT_MODEL
+        ) {
+          toast.info(`El modelo ${activeModel} no está disponible. Reintentando con ${DEFAULT_MODEL}...`);
+          activeModel = DEFAULT_MODEL;
+          setSelectedModel(DEFAULT_MODEL);
+          localStorage.setItem('groq_model', DEFAULT_MODEL);
+          response = await makeGroqRequest(DEFAULT_MODEL);
+        } else {
+          if (response.status === 401) {
+            throw new Error('Clave API no válida o expirada. Pulsa en "Configurar Clave" para revisarla o actualizarla.');
+          }
+          if (serverMsg.includes('network settings') || serverMsg.includes('Access denied')) {
+            throw new Error('Groq ha denegado la conexión (bloqueo de red o Cloudflare). Si tienes una VPN activa (como Surfshark), desactívala temporalmente.');
+          }
+          throw new Error(serverMsg);
         }
-        if (serverMsg.includes('network settings') || serverMsg.includes('Access denied')) {
-          throw new Error('Groq ha denegado la conexión (bloqueo de red o Cloudflare). Si tienes una VPN activa (como Surfshark), desactívala temporalmente.');
-        }
+      }
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
         throw new Error(serverMsg);
       }
 
@@ -277,6 +318,8 @@ Instrucciones importantes:
     setInput(question);
   };
 
+  const currentModelDisplayName = AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name.split(' (')[0] || selectedModel;
+
   return (
     <div className="ai-chat-container fade-in">
       <div className="card chat-card">
@@ -285,7 +328,7 @@ Instrucciones importantes:
             <Bot size={24} className="sparkle-icon" />
             <div>
               <h3>Asistente Financiero IA</h3>
-              <span className="subtitle">Groq Llama 3.3 70B</span>
+              <span className="subtitle">Groq {currentModelDisplayName}</span>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -302,14 +345,11 @@ Instrucciones importantes:
                 border: apiKey ? '1px solid var(--border)' : '1px solid #f59e0b',
                 color: apiKey ? 'var(--text-main)' : '#f59e0b'
               }}
-              onClick={() => {
-                setInputKey(localStorage.getItem('groq_api_key') || '');
-                setIsKeyModalOpen(true);
-              }}
-              title="Configurar clave API de Groq"
+              onClick={openConfigModal}
+              title="Configurar clave API y modelo de Groq"
             >
               <Key size={14} style={{ color: apiKey ? 'var(--primary)' : '#f59e0b' }} />
-              <span>{apiKey ? 'API Key activa' : 'Configurar Clave'}</span>
+              <span>{apiKey ? 'Configurar' : 'Configurar Clave'}</span>
             </button>
             <div className="chat-badge">
               <Sparkles size={14} />
@@ -337,10 +377,7 @@ Instrucciones importantes:
             <button
               className="btn btn-primary"
               style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-              onClick={() => {
-                setInputKey(localStorage.getItem('groq_api_key') || '');
-                setIsKeyModalOpen(true);
-              }}
+              onClick={openConfigModal}
             >
               Configurar clave
             </button>
@@ -415,12 +452,30 @@ Instrucciones importantes:
       <Modal
         isOpen={isKeyModalOpen}
         onClose={() => setIsKeyModalOpen(false)}
-        title="Configurar API Key de Groq"
+        title="Configuración de Asistente IA (Groq)"
       >
         <form onSubmit={handleSaveKey}>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
             Para interactuar con el asistente financiero, necesitas una clave de API de Groq (gratuita en <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>console.groq.com/keys</a>).
           </p>
+
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label style={{ marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600, display: 'block' }}>
+              Modelo de IA
+            </label>
+            <select
+              className="input"
+              value={tempModel}
+              onChange={e => setTempModel(e.target.value)}
+            >
+              {AVAILABLE_MODELS.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block' }}>
+              {AVAILABLE_MODELS.find(m => m.id === tempModel)?.desc}
+            </span>
+          </div>
 
           <div className="form-group" style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>
@@ -511,9 +566,9 @@ Instrucciones importantes:
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={!inputKey.trim() && !localStorage.getItem('groq_api_key')}
+                disabled={!inputKey.trim() && !localStorage.getItem('groq_api_key') && tempModel === selectedModel}
               >
-                Guardar clave
+                Guardar
               </button>
             </div>
           </div>
