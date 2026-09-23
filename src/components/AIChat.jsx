@@ -68,14 +68,12 @@ function renderMarkdown(text) {
   });
 }
 
-const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 
 const AVAILABLE_MODELS = [
-  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Recomendado, gratuito)', desc: 'Ultrarrápido, 131k de contexto, disponible en todas las cuentas.' },
-  { id: 'openai/gpt-oss-120b', name: 'OpenAI GPT-OSS 120B', desc: 'Gran capacidad de razonamiento profundo.' },
-  { id: 'openai/gpt-oss-20b', name: 'OpenAI GPT-OSS 20B', desc: 'Rápido, equilibrado y eficiente.' },
-  { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', desc: 'Alta capacidad matemática y de análisis.' },
-  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile', desc: 'Requiere plan o acceso específico en Groq.' }
+  { id: 'openai/gpt-oss-120b', name: 'OpenAI GPT-OSS 120B (Recomendado, inteligente)', desc: '120B parámetros, 131k de contexto, razonamiento avanzado.' },
+  { id: 'openai/gpt-oss-20b', name: 'OpenAI GPT-OSS 20B (Ultrarrápido)', desc: '1.000 tokens/segundo, 131k de contexto, ultra veloz.' },
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B (Alibaba Cloud)', desc: 'Alta capacidad matemática y lógica.' }
 ];
 
 const getStoredApiKey = () => {
@@ -86,7 +84,13 @@ export default function AIChat() {
   const { exportAllData } = useStore();
   const [apiKey, setApiKey] = useState(getStoredApiKey);
   const [selectedModel, setSelectedModel] = useState(() => {
-    return localStorage.getItem('groq_model') || DEFAULT_MODEL;
+    const saved = localStorage.getItem('groq_model');
+    // If the saved model was an old Llama model that Groq no longer supports, reset to DEFAULT_MODEL
+    if (!saved || saved.includes('llama') || !AVAILABLE_MODELS.some(m => m.id === saved)) {
+      localStorage.setItem('groq_model', DEFAULT_MODEL);
+      return DEFAULT_MODEL;
+    }
+    return saved;
   });
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [inputKey, setInputKey] = useState('');
@@ -264,6 +268,11 @@ Instrucciones importantes:
       };
 
       let activeModel = selectedModel;
+      if (activeModel.includes('llama') || !AVAILABLE_MODELS.some(m => m.id === activeModel)) {
+        activeModel = DEFAULT_MODEL;
+        setSelectedModel(DEFAULT_MODEL);
+        localStorage.setItem('groq_model', DEFAULT_MODEL);
+      }
       let response = await makeGroqRequest(activeModel);
 
       // Auto-fallback if the model is retired or not accessible on this key
@@ -271,15 +280,13 @@ Instrucciones importantes:
         const errData = await response.json().catch(() => null);
         const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
 
-        if (
-          (response.status === 404 || serverMsg.includes('does not exist') || serverMsg.includes('do not have access')) &&
-          activeModel !== DEFAULT_MODEL
-        ) {
-          toast.info(`El modelo ${activeModel} no está disponible. Reintentando con ${DEFAULT_MODEL}...`);
-          activeModel = DEFAULT_MODEL;
-          setSelectedModel(DEFAULT_MODEL);
-          localStorage.setItem('groq_model', DEFAULT_MODEL);
-          response = await makeGroqRequest(DEFAULT_MODEL);
+        if (response.status === 404 || serverMsg.includes('does not exist') || serverMsg.includes('do not have access')) {
+          const fallbackModel = activeModel !== DEFAULT_MODEL ? DEFAULT_MODEL : 'openai/gpt-oss-20b';
+          toast.info(`El modelo ${activeModel} no está disponible. Reintentando con ${fallbackModel}...`);
+          activeModel = fallbackModel;
+          setSelectedModel(fallbackModel);
+          localStorage.setItem('groq_model', fallbackModel);
+          response = await makeGroqRequest(fallbackModel);
         } else {
           if (response.status === 401) {
             throw new Error('Clave API no válida o expirada. Pulsa en "Configurar Clave" para revisarla o actualizarla.');
