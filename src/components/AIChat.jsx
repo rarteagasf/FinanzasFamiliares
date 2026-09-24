@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Send, Bot, User, Sparkles, Loader2, Key, Eye, EyeOff, Cpu, Zap, Copy, Check, Pencil, X, ExternalLink } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Key, Eye, EyeOff, Cpu, Zap, Copy, Check, Pencil, X, ExternalLink, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from './ui/Modal';
 
@@ -695,30 +695,20 @@ Instrucciones de análisis y cálculo:
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.75rem',
-                padding: '0.35rem 0.65rem',
-                borderRadius: '8px',
-                border: activeKey ? '1px solid var(--border)' : '1px solid #f59e0b',
-                color: activeKey ? 'var(--text-main)' : '#f59e0b'
-              }}
-              onClick={openConfigModal}
-              title="Configurar motor de IA y claves"
-            >
-              <Key size={14} style={{ color: activeKey ? 'var(--primary)' : '#f59e0b' }} />
-              <span>{activeKey ? 'Configurar' : 'Configurar Clave'}</span>
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <div className="chat-badge" title={activeProviderInfo.badge}>
               <Sparkles size={14} />
               <span>{activeProviderInfo.shortName}</span>
             </div>
+            <button
+              type="button"
+              className="chat-settings-btn"
+              onClick={openConfigModal}
+              title="Ajustes del Asistente (modelo y motor de IA)"
+              aria-label="Ajustes del Asistente"
+            >
+              <Settings size={16} />
+            </button>
           </div>
         </div>
 
