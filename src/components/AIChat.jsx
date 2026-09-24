@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Send, Bot, User, Sparkles, Loader2, Key, Eye, EyeOff, Cpu, Zap, Copy, Check, Pencil, X, ExternalLink, Settings } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Copy, Check, Pencil, X } from 'lucide-react';
 import { toast } from 'sonner';
-import Modal from './ui/Modal';
 
 // Helper to parse simple markdown to JSX safely
 function parseBoldAndCode(text) {
@@ -177,102 +176,8 @@ function renderMarkdown(text) {
   return elements;
 }
 
-const PROVIDERS = {
-  gemini: {
-    id: 'gemini',
-    name: 'Google AI Studio (Gemini)',
-    shortName: 'AI Studio',
-    badge: '1M tokens/min',
-    defaultModel: 'gemini-3.6-flash',
-    models: [
-      {
-        id: 'gemini-3.6-flash',
-        name: 'Gemini 3.6 Flash (Recomendado, oficial y veloz)',
-        desc: '1.000.000 tokens de contexto. Modelo oficial de última generación con razonamiento rápido y cálculos precisos.'
-      },
-      {
-        id: 'gemini-3.7-flash',
-        name: 'Gemini 3.7 Flash (Razonamiento profundo)',
-        desc: '1.000.000 tokens de contexto. Mayor capacidad analítica para escenarios complejos.'
-      }
-    ]
-  },
-  groq: {
-    id: 'groq',
-    name: 'Groq',
-    shortName: 'Groq',
-    badge: '8k tokens/min',
-    defaultModel: 'openai/gpt-oss-120b',
-    models: [
-      {
-        id: 'openai/gpt-oss-120b',
-        name: 'OpenAI GPT-OSS 120B (Recomendado Groq)',
-        desc: '120B parámetros, 131k de contexto, razonamiento avanzado.'
-      },
-      {
-        id: 'openai/gpt-oss-20b',
-        name: 'OpenAI GPT-OSS 20B (Ultrarrápido)',
-        desc: '1.000 tokens/segundo, 131k de contexto, ultra veloz.'
-      },
-      {
-        id: 'qwen/qwen3.8-27b',
-        name: 'Qwen 3.8 27B (Alibaba Cloud)',
-        desc: 'Alta capacidad matemática y lógica.'
-      }
-    ]
-  }
-};
-
-const getStoredGeminiKey = () => {
-  return localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
-};
-
-const getStoredGroqKey = () => {
-  return localStorage.getItem('groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '';
-};
-
-const getStoredProvider = () => {
-  const saved = localStorage.getItem('ai_provider');
-  if (saved && PROVIDERS[saved]) return saved;
-  const geminiKey = getStoredGeminiKey().trim();
-  const groqKey = getStoredGroqKey().trim();
-  // Si la clave de Gemini usa el formato nuevo 'AQ.' (incompatible con REST directo) y Groq está disponible, preferir Groq
-  if (geminiKey.startsWith('AQ.') && groqKey) return 'groq';
-  if (!geminiKey && groqKey) return 'groq';
-  return 'gemini';
-};
-
-const getStoredGeminiModel = () => {
-  const saved = localStorage.getItem('gemini_model');
-  if (saved && !saved.includes('2.0') && !saved.includes('1.5') && PROVIDERS.gemini.models.some(m => m.id === saved)) return saved;
-  return PROVIDERS.gemini.defaultModel;
-};
-
-const getStoredGroqModel = () => {
-  const saved = localStorage.getItem('groq_model');
-  if (saved && !saved.includes('llama') && PROVIDERS.groq.models.some(m => m.id === saved)) return saved;
-  return PROVIDERS.groq.defaultModel;
-};
-
 export default function AIChat() {
   const { exportAllData } = useStore();
-  const [provider, setProvider] = useState(getStoredProvider);
-  const [geminiApiKey, setGeminiApiKey] = useState(getStoredGeminiKey);
-  const [groqApiKey, setGroqApiKey] = useState(getStoredGroqKey);
-  const [geminiModel, setGeminiModel] = useState(getStoredGeminiModel);
-  const [groqModel, setGroqModel] = useState(getStoredGroqModel);
-
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [modalProvider, setModalProvider] = useState(provider);
-  const [inputGeminiKey, setInputGeminiKey] = useState('');
-  const [inputGroqKey, setInputGroqKey] = useState('');
-  const [tempGeminiModel, setTempGeminiModel] = useState(geminiModel);
-  const [tempGroqModel, setTempGroqModel] = useState(groqModel);
-  const [showKeyText, setShowKeyText] = useState(false);
-
-  const activeProviderInfo = PROVIDERS[provider] || PROVIDERS.gemini;
-  const activeKey = provider === 'gemini' ? (geminiApiKey || getStoredGeminiKey()) : (groqApiKey || getStoredGroqKey());
-  const activeModel = provider === 'gemini' ? geminiModel : groqModel;
 
   const [messages, setMessages] = useState([
     {
@@ -354,52 +259,12 @@ ${loansList || 'Sin préstamos'}
 ### TARJETAS DE CRÉDITO:
 ${cardsList || 'Sin tarjetas'}
 
-### GASTOS REGISTRADOS (Mes | Día | Concepto | Importe | Entidad | Estado):
+### GASTOS REGISTRADOS (Mes | Día | Concepto | Importe | Estado):
 ${expensesList || 'Sin gastos'}${truncatedNotice}`;
     } catch (err) {
       console.error('Error al generar contexto financiero:', err);
       return '';
     }
-  };
-
-  const handleSaveConfig = (e) => {
-    e.preventDefault();
-
-    localStorage.setItem('ai_provider', modalProvider);
-    setProvider(modalProvider);
-
-    const trimmedGemini = inputGeminiKey.trim();
-    if (trimmedGemini) {
-      localStorage.setItem('gemini_api_key', trimmedGemini);
-      setGeminiApiKey(trimmedGemini);
-    }
-    if (tempGeminiModel) {
-      localStorage.setItem('gemini_model', tempGeminiModel);
-      setGeminiModel(tempGeminiModel);
-    }
-
-    const trimmedGroq = inputGroqKey.trim();
-    if (trimmedGroq) {
-      localStorage.setItem('groq_api_key', trimmedGroq);
-      setGroqApiKey(trimmedGroq);
-    }
-    if (tempGroqModel) {
-      localStorage.setItem('groq_model', tempGroqModel);
-      setGroqModel(tempGroqModel);
-    }
-
-    toast.success('Configuración guardada correctamente');
-    setIsKeyModalOpen(false);
-  };
-
-  const openConfigModal = () => {
-    setModalProvider(provider);
-    setInputGeminiKey(localStorage.getItem('gemini_api_key') || '');
-    setInputGroqKey(localStorage.getItem('groq_api_key') || '');
-    setTempGeminiModel(PROVIDERS.gemini.models.some(m => m.id === geminiModel) ? geminiModel : PROVIDERS.gemini.defaultModel);
-    setTempGroqModel(PROVIDERS.groq.models.some(m => m.id === groqModel) ? groqModel : PROVIDERS.groq.defaultModel);
-    setShowKeyText(false);
-    setIsKeyModalOpen(true);
   };
 
   const handleSend = async (e) => {
@@ -412,24 +277,9 @@ ${expensesList || 'Sin gastos'}${truncatedNotice}`;
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
-    const isGemini = provider === 'gemini';
-    const currentKey = (isGemini ? (geminiApiKey || getStoredGeminiKey()) : (groqApiKey || getStoredGroqKey()) || '').trim();
-
-    if (!currentKey) {
-      const provName = isGemini ? 'Google Gemini' : 'Groq';
-      const envVar = isGemini ? 'VITE_GEMINI_API_KEY' : 'VITE_GROQ_API_KEY';
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `⚠️ **Falta la clave API de ${provName}**: Para consultar al asistente, introduce tu clave API pulsando en el botón **Configurar** arriba o agrégala a las variables de entorno de tu proyecto en Vercel (\`${envVar}\`).`
-      }]);
-      openConfigModal();
-      setLoading(false);
-      return;
-    }
-
     try {
       const financeText = await getFinanceContext();
-      setStatusMessage(`Analizando finanzas con ${isGemini ? 'Google Gemini' : 'Groq'}...`);
+      setStatusMessage('Consultando al asistente de IA...');
 
       const systemPrompt = `Eres un asistente de finanzas personales inteligente, analítico y servicial. Tienes acceso completo a la base de datos de finanzas familiares.
 
@@ -447,193 +297,41 @@ Instrucciones de análisis y cálculo:
 3. En el detalle de gastos: "Pendiente" significa que el gasto está planificado pero no se ha cobrado todavía de la cuenta. "Pagado" significa que ya se ha deducido.
 4. Recomienda consejos útiles de ahorro, optimización de presupuesto o alertas sobre endeudamiento según los datos.`;
 
-      // Keep only last 4 messages, discarding errors, to stay efficient
+      // Historial limpio (últimos 4 mensajes)
       const cleanHistory = messages
         .filter(msg => msg.role !== 'system' && !msg.content.startsWith('❌') && !msg.content.startsWith('⚠️'))
         .slice(-4);
 
-      let assistantMessage = '';
+      // Llamada al endpoint proxy seguro en Vercel
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messages: [
+            ...cleanHistory,
+            { role: 'user', content: userMessage }
+          ],
+          systemPrompt
+        })
+      });
 
-      const makeGroqRequest = async (modelToUse, apiKeyToUse = currentKey) => {
-        return await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKeyToUse}`
-          },
-          body: JSON.stringify({
-            model: modelToUse,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              ...cleanHistory.map(msg => ({ role: msg.role, content: msg.content })),
-              { role: 'user', content: userMessage }
-            ],
-            temperature: 0.3,
-            max_tokens: 2000
-          })
-        });
-      };
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || `Error HTTP ${response.status} del servidor proxy`);
+      }
 
-      if (isGemini) {
-        // === LLAMADA A GOOGLE GEMINI ===
-        const contents = [
-          ...cleanHistory.map(msg => ({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: msg.content }]
-          })),
-          {
-            role: 'user',
-            parts: [{ text: userMessage }]
-          }
-        ];
+      const data = await response.json();
+      let assistantMessage = data?.content || 'No he recibido respuesta del asistente de IA.';
 
-        const makeGeminiRequest = async (modelToUse) => {
-          return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': currentKey
-            },
-            body: JSON.stringify({
-              systemInstruction: {
-                parts: [{ text: systemPrompt }]
-              },
-              contents,
-              generationConfig: {
-                maxOutputTokens: 8192,
-                thinkingConfig: {
-                  thinkingLevel: 'low'
-                }
-              }
-            })
-          });
-        };
-
-        let activeGeminiModel = geminiModel;
-        if (activeGeminiModel.includes('2.0') || activeGeminiModel.includes('1.5') || !PROVIDERS.gemini.models.some(m => m.id === activeGeminiModel)) {
-          activeGeminiModel = PROVIDERS.gemini.defaultModel;
-          setGeminiModel(activeGeminiModel);
-          localStorage.setItem('gemini_model', activeGeminiModel);
-        }
-
-        let response = await makeGeminiRequest(activeGeminiModel);
-
-        // Auto-retry once for 503 / High demand temporary spikes
-        if (response.status === 503) {
-          setStatusMessage('Google Gemini con alta demanda temporal. Reintentando en 1.5s...');
-          await new Promise(r => setTimeout(r, 1500));
-          response = await makeGeminiRequest(activeGeminiModel);
-        }
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => null);
-          const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
-
-          const isUnsupportedKeyFormat = serverMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || (errData?.error?.details || []).some(d => d.reason === 'ACCESS_TOKEN_TYPE_UNSUPPORTED');
-          const isOverloaded = response.status === 503 || serverMsg.includes('high demand') || serverMsg.includes('temporarily overloaded') || serverMsg.includes('Resource has been exhausted');
-          const isAuthError = response.status === 401 || isUnsupportedKeyFormat;
-          const groqFallbackKey = (groqApiKey || getStoredGroqKey() || '').trim();
-
-          // If Gemini is overloaded or rejected by auth (e.g. AQ. key format) and we have a Groq key, seamlessly fallback!
-          if ((isOverloaded || isAuthError) && groqFallbackKey) {
-            const toastText = isAuthError
-              ? 'Clave Gemini con formato no compatible con REST de Google. Respondiendo mediante Groq...'
-              : 'Google Gemini con alta demanda mundial. Respondiendo mediante Groq...';
-            toast.info(toastText);
-            setStatusMessage('Obteniendo respuesta vía Groq...');
-            const fallbackGroqRes = await makeGroqRequest(PROVIDERS.groq.defaultModel, groqFallbackKey);
-            if (fallbackGroqRes.ok) {
-              const groqData = await fallbackGroqRes.json();
-              const groqContent = groqData?.choices?.[0]?.message?.content || '';
-              if (groqContent) {
-                const headerNote = isAuthError
-                  ? `> ⚡ *Aviso: Tu clave de Gemini tiene el formato nuevo de Google AI Studio ('AQ...'), que la API REST de Google rechaza actualmente (ACCESS_TOKEN_TYPE_UNSUPPORTED). La respuesta se ha generado automáticamente con Groq (${PROVIDERS.groq.defaultModel}) para no interrumpir el servicio.*\n\n`
-                  : `> ⚡ *Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. La respuesta se ha generado automáticamente con Groq (${PROVIDERS.groq.defaultModel}) para no hacerte esperar.*\n\n`;
-                assistantMessage = headerNote + groqContent;
-                setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
-                return;
-              }
-            }
-          }
-
-          if (isOverloaded) {
-            throw new Error('Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. Espera unos segundos o pulsa en Ajustes (icono ⚙️) para alternar al motor Groq.');
-          } else if (isUnsupportedKeyFormat || (response.status === 401 && currentKey.startsWith('AQ.'))) {
-            throw new Error('Google AI Studio ha emitido una clave con el nuevo prefijo "AQ.", el cual es actualmente rechazado por el endpoint REST directo de Google (error ACCESS_TOKEN_TYPE_UNSUPPORTED). Soluciones: 1) Pulsa en Ajustes (icono ⚙️) y cambia al motor Groq, o 2) Genera una clave tradicional ("AIzaSy...") desde Google Cloud Console e introdúcela.');
-          } else if ((response.status === 404 || serverMsg.includes('no longer available') || serverMsg.includes('gemini-3.6-flash')) && activeGeminiModel !== 'gemini-3.6-flash') {
-            toast.info('Actualizando automáticamente a Gemini 3.6 Flash...');
-            activeGeminiModel = 'gemini-3.6-flash';
-            setGeminiModel('gemini-3.6-flash');
-            localStorage.setItem('gemini_model', 'gemini-3.6-flash');
-            response = await makeGeminiRequest('gemini-3.6-flash');
-            if (!response.ok) {
-              const retryErr = await response.json().catch(() => null);
-              throw new Error(retryErr?.error?.message || serverMsg);
-            }
-          } else if (response.status === 429) {
-            throw new Error('Límite de peticiones alcanzado en Google Gemini (15 RPM). Espera unos segundos y vuelve a consultar.');
-          } else if (response.status === 401) {
-            throw new Error(`Error de autenticación con Google: ${serverMsg}. Revisa tu clave en el botón de ajustes (icono ⚙️).`);
-          } else {
-            throw new Error(serverMsg);
-          }
-        }
-
-        const resData = await response.json();
-        const candidate = resData?.candidates?.[0];
-        const textParts = candidate?.content?.parts
-          ?.filter(p => !p.thought && p.text)
-          ?.map(p => p.text) || [];
-
-        assistantMessage = textParts.join('').trim() || candidate?.content?.parts?.[0]?.text || 'No he recibido respuesta de Google Gemini.';
-
-      } else {
-        // === LLAMADA A GROQ ===
-        let activeGroqModel = groqModel;
-        if (activeGroqModel.includes('llama') || !PROVIDERS.groq.models.some(m => m.id === activeGroqModel)) {
-          activeGroqModel = PROVIDERS.groq.defaultModel;
-          setGroqModel(activeGroqModel);
-          localStorage.setItem('groq_model', activeGroqModel);
-        }
-        let response = await makeGroqRequest(activeGroqModel, currentKey);
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => null);
-          const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
-
-          if (response.status === 404 || serverMsg.includes('does not exist') || serverMsg.includes('do not have access')) {
-            const fallbackModel = activeGroqModel !== PROVIDERS.groq.defaultModel ? PROVIDERS.groq.defaultModel : 'openai/gpt-oss-20b';
-            toast.info(`El modelo ${activeGroqModel} no está disponible. Reintentando con ${fallbackModel}...`);
-            activeGroqModel = fallbackModel;
-            setGroqModel(fallbackModel);
-            localStorage.setItem('groq_model', fallbackModel);
-            response = await makeGroqRequest(fallbackModel, currentKey);
-          } else if (response.status === 429 || serverMsg.includes('TPM') || serverMsg.includes('Tokens Per Minute') || serverMsg.includes('Request too large')) {
-            throw new Error('Límite de tokens por minuto (TPM) alcanzado en el plan gratuito de Groq. Espera unos segundos y vuelve a intentarlo.');
-          } else {
-            if (response.status === 401) {
-              throw new Error('Clave API de Groq no válida o expirada. Pulsa en "Configurar" para revisarla o actualizarla.');
-            }
-            if (serverMsg.includes('network settings') || serverMsg.includes('Access denied')) {
-              throw new Error('Groq ha denegado la conexión (bloqueo de red o Cloudflare). Si tienes una VPN activa (como Surfshark), desactívala temporalmente.');
-            }
-            throw new Error(serverMsg);
-          }
-        }
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => null);
-          const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
-          throw new Error(serverMsg);
-        }
-
-        const resData = await response.json();
-        assistantMessage = resData?.choices?.[0]?.message?.content || 'No he recibido respuesta del modelo de Groq.';
+      if (data?.fallbackUsed) {
+        assistantMessage = `> ⚡ *Respuesta generada automáticamente a través del motor de respaldo (${data.provider}) para no hacerte esperar.*\n\n` + assistantMessage;
       }
 
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
     } catch (err) {
-      console.error(err);
+      console.error('Error al consultar el asistente:', err);
       toast.error('Error al consultar el asistente de IA');
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -697,8 +395,6 @@ Instrucciones de análisis y cálculo:
     }, 60);
   };
 
-  const currentModelDisplayName = activeProviderInfo.models.find(m => m.id === activeModel)?.name.split(' (')[0] || activeModel;
-
   return (
     <div className="ai-chat-container fade-in">
       <div className="card chat-card">
@@ -708,52 +404,15 @@ Instrucciones de análisis y cálculo:
             <div>
               <h3>Asistente Financiero IA</h3>
               <span className="subtitle">
-                {activeProviderInfo.name} · {currentModelDisplayName}
+                Análisis inteligente y automático de finanzas familiares
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div className="chat-badge" title={activeProviderInfo.badge}>
-              <Sparkles size={14} />
-              <span>{activeProviderInfo.shortName}</span>
-            </div>
-            <button
-              type="button"
-              className="chat-settings-btn"
-              onClick={openConfigModal}
-              title="Ajustes del Asistente (modelo y motor de IA)"
-              aria-label="Ajustes del Asistente"
-            >
-              <Settings size={16} />
-            </button>
+          <div className="chat-badge" title="Servicio de IA activo y centralizado en Vercel">
+            <Sparkles size={14} />
+            <span>IA Automática</span>
           </div>
         </div>
-
-        {!activeKey && (
-          <div style={{
-            background: 'rgba(245, 158, 11, 0.1)',
-            borderBottom: '1px solid rgba(245, 158, 11, 0.25)',
-            padding: '0.65rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            fontSize: '0.825rem',
-            color: 'var(--text-main)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Key size={15} style={{ color: '#f59e0b', flexShrink: 0 }} />
-              <span>No se ha detectado una clave API activa para {activeProviderInfo.name}.</span>
-            </div>
-            <button
-              className="btn btn-primary"
-              style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-              onClick={openConfigModal}
-            >
-              Configurar clave
-            </button>
-          </div>
-        )}
 
         <div className="chat-history">
           {messages.map((msg, index) => (
@@ -879,299 +538,6 @@ Instrucciones de análisis y cálculo:
           </button>
         </form>
       </div>
-
-      <Modal
-        isOpen={isKeyModalOpen}
-        onClose={() => setIsKeyModalOpen(false)}
-        title="Configuración de Inteligencia Artificial"
-      >
-        <form onSubmit={handleSaveConfig}>
-          {/* Selector de Proveedor */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-              Motor de IA
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-              <button
-                type="button"
-                onClick={() => setModalProvider('gemini')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '10px',
-                  border: modalProvider === 'gemini' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                  background: modalProvider === 'gemini' ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-main)',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-main)' }}>
-                  <Sparkles size={15} style={{ color: 'var(--primary)' }} />
-                  <span>Google AI Studio (Gemini)</span>
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--success)', marginTop: '0.2rem' }}>
-                  ⭐ Recomendado (1M TPM Gratis)
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setModalProvider('groq')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '10px',
-                  border: modalProvider === 'groq' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                  background: modalProvider === 'groq' ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-main)',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-main)' }}>
-                  <Zap size={15} style={{ color: '#f59e0b' }} />
-                  <span>Groq (Llama / GPT-OSS)</span>
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  ⚡ Ultrarrápido (8k TPM)
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {modalProvider === 'gemini' ? (
-            /* CONFIGURACIÓN GOOGLE AI STUDIO (GEMINI) */
-            <div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600, display: 'block' }}>
-                  Modelo Google Gemini
-                </label>
-                <select
-                  className="input"
-                  value={tempGeminiModel}
-                  onChange={e => setTempGeminiModel(e.target.value)}
-                >
-                  {PROVIDERS.gemini.models.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block' }}>
-                  {PROVIDERS.gemini.models.find(m => m.id === tempGeminiModel)?.desc}
-                </span>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>
-                  <span>Clave API de Google AI Studio</span>
-                  {(geminiApiKey || localStorage.getItem('gemini_api_key')) && (
-                    <span style={{ color: 'var(--success)', fontWeight: 500, fontSize: '0.75rem' }}>
-                      ✓ Clave guardada
-                    </span>
-                  )}
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    type={showKeyText ? 'text' : 'password'}
-                    className="input"
-                    placeholder={geminiApiKey ? '••••••••••••••••••••••••••••••••' : 'AIzaSy... (clave de Google AI Studio)'}
-                    value={inputGeminiKey}
-                    onChange={e => setInputGeminiKey(e.target.value)}
-                    style={{ paddingRight: '2.5rem', fontFamily: showKeyText ? 'monospace' : 'inherit' }}
-                  />
-                  <button
-                    type="button"
-                    style={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '0.25rem'
-                    }}
-                    onClick={() => setShowKeyText(!showKeyText)}
-                    title={showKeyText ? 'Ocultar' : 'Mostrar'}
-                  >
-                    {showKeyText ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.45rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Formato estándar compatible: <code>AIzaSy...</code>
-                    </span>
-                    <a
-                      href="https://console.cloud.google.com/apis/credentials"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        fontSize: '0.75rem',
-                        color: 'var(--primary)',
-                        fontWeight: 600,
-                        textDecoration: 'underline'
-                      }}
-                    >
-                      Google Cloud Credentials <ExternalLink size={12} />
-                    </a>
-                  </div>
-                  {((inputGeminiKey || geminiApiKey || '').trim().startsWith('AQ.')) && (
-                    <div style={{
-                      fontSize: '0.75rem',
-                      color: '#d97706',
-                      background: 'rgba(245, 158, 11, 0.12)',
-                      border: '1px solid rgba(245, 158, 11, 0.3)',
-                      padding: '0.4rem 0.65rem',
-                      borderRadius: '6px',
-                      lineHeight: '1.4'
-                    }}>
-                      ⚠️ <strong>Aviso formato clave</strong>: Las claves que empiezan por <code>AQ.</code> son rechazadas actualmente por la API REST de Google con error de autenticación. Genera una clave tradicional (<code>AIza...</code>) en Google Cloud Console o utiliza el motor Groq.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div style={{
-                background: 'var(--bg-main)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '0.75rem 1rem',
-                marginBottom: '1.25rem',
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)',
-                lineHeight: '1.4'
-              }}>
-                <p style={{ margin: 0 }}>
-                  💡 <strong>Disponible en todos tus dispositivos</strong>: Puedes definir la variable <code>VITE_GEMINI_API_KEY</code> (o <code>VITE_GROQ_API_KEY</code>) en Vercel para que el asistente funcione automáticamente en tu móvil y ordenador sin configurar claves manuales.
-                </p>
-              </div>
-            </div>
-          ) : (
-            /* CONFIGURACIÓN GROQ */
-            <div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600, display: 'block' }}>
-                  Modelo Groq
-                </label>
-                <select
-                  className="input"
-                  value={tempGroqModel}
-                  onChange={e => setTempGroqModel(e.target.value)}
-                >
-                  {PROVIDERS.groq.models.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block' }}>
-                  {PROVIDERS.groq.models.find(m => m.id === tempGroqModel)?.desc}
-                </span>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>
-                  <span>Clave API Groq (gsk_...)</span>
-                  {(groqApiKey || localStorage.getItem('groq_api_key')) && (
-                    <span style={{ color: 'var(--success)', fontWeight: 500, fontSize: '0.75rem' }}>
-                      ✓ Clave guardada
-                    </span>
-                  )}
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    type={showKeyText ? 'text' : 'password'}
-                    className="input"
-                    placeholder={groqApiKey ? '••••••••••••••••••••••••••••••••' : 'gsk_...'}
-                    value={inputGroqKey}
-                    onChange={e => setInputGroqKey(e.target.value)}
-                    style={{ paddingRight: '2.5rem', fontFamily: showKeyText ? 'monospace' : 'inherit' }}
-                  />
-                  <button
-                    type="button"
-                    style={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '0.25rem'
-                    }}
-                    onClick={() => setShowKeyText(!showKeyText)}
-                    title={showKeyText ? 'Ocultar' : 'Mostrar'}
-                  >
-                    {showKeyText ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block' }}>
-                  Clave gratuita en <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>console.groq.com/keys</a>.
-                </span>
-              </div>
-
-              <div style={{
-                background: 'var(--bg-main)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '0.75rem 1rem',
-                marginBottom: '1.25rem',
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)',
-                lineHeight: '1.4'
-              }}>
-                <p style={{ margin: 0 }}>
-                  💡 <strong>Variable en Vercel</strong>: <code>VITE_GROQ_API_KEY</code>.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginTop: '1.25rem' }}>
-            {((modalProvider === 'gemini' && localStorage.getItem('gemini_api_key')) ||
-              (modalProvider === 'groq' && localStorage.getItem('groq_api_key'))) ? (
-              <button
-                type="button"
-                className="btn btn-danger"
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-                onClick={() => {
-                  if (modalProvider === 'gemini') {
-                    localStorage.removeItem('gemini_api_key');
-                    setGeminiApiKey(import.meta.env.VITE_GEMINI_API_KEY || '');
-                    setInputGeminiKey('');
-                  } else {
-                    localStorage.removeItem('groq_api_key');
-                    setGroqApiKey(import.meta.env.VITE_GROQ_API_KEY || '');
-                    setInputGroqKey('');
-                  }
-                  toast.info('Clave del navegador eliminada');
-                  setIsKeyModalOpen(false);
-                }}
-              >
-                Eliminar clave
-              </button>
-            ) : <div />}
-
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setIsKeyModalOpen(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

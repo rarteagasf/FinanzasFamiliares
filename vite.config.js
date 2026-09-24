@@ -1,10 +1,53 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import chatHandler from './api/chat.js'
 
-export default defineConfig({
-  plugins: [
-    react(),
+function localApiPlugin() {
+  return {
+    name: 'local-api-chat',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url === '/api/chat' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', chunk => {
+            bodyStr += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              req.body = JSON.parse(bodyStr || '{}');
+              res.status = (code) => {
+                res.statusCode = code;
+                return res;
+              };
+              res.json = (data) => {
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(data));
+                return res;
+              };
+              await chatHandler(req, res);
+            } catch (err) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+        next();
+      });
+    }
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  Object.assign(process.env, env);
+
+  return {
+    plugins: [
+      react(),
+      localApiPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg', 'pwa-icon.svg'],
@@ -57,5 +100,6 @@ export default defineConfig({
         ],
       },
     }),
-  ],
+    ],
+  }
 })
