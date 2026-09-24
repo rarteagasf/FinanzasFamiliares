@@ -3,35 +3,92 @@ import { useStore } from '../store/useStore';
 import { Send, Bot, User, Sparkles, Loader2, Copy, Check, Pencil, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Helper to parse simple markdown to JSX safely
-function parseBoldAndCode(text) {
-  const parts = text.split('**');
-  return parts.map((part, i) => {
-    const isBold = i % 2 === 1;
-    const codeParts = part.split('`');
-    const rendered = codeParts.map((subPart, j) => {
-      const isCode = j % 2 === 1;
-      if (isCode) {
-        return (
-          <code key={j} style={{
+// Helper to parse inline markdown (code, bold, italic, links, strikethrough)
+function parseInlineMarkdown(text) {
+  if (!text) return '';
+
+  // Tokenize inline markdown elements by priority order
+  const tokenRegex = /(`[^`]+`|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|__[^_]+__|_[^_]+_|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/g;
+  const parts = text.split(tokenRegex);
+
+  return parts.map((part, idx) => {
+    if (!part) return null;
+
+    // Inline code: `...`
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      return (
+        <code
+          key={idx}
+          style={{
             background: 'var(--bg-main)',
             padding: '0.15rem 0.35rem',
             borderRadius: '6px',
             fontFamily: 'monospace',
             fontSize: '0.85em',
-            border: '1px solid var(--border)'
-          }}>
-            {subPart}
-          </code>
-        );
-      }
-      return subPart;
-    });
-
-    if (isBold) {
-      return <strong key={i}>{rendered}</strong>;
+            border: '1px solid var(--border)',
+            color: 'var(--text-main)'
+          }}
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
     }
-    return <span key={i}>{rendered}</span>;
+
+    // Bold + Italic: ***...***
+    if (part.startsWith('***') && part.endsWith('***') && part.length >= 6) {
+      return (
+        <strong key={idx}>
+          <em>{parseInlineMarkdown(part.slice(3, -3))}</em>
+        </strong>
+      );
+    }
+
+    // Bold: **...** or __...__
+    if ((part.startsWith('**') && part.endsWith('**') && part.length >= 4) ||
+        (part.startsWith('__') && part.endsWith('__') && part.length >= 4)) {
+      return (
+        <strong key={idx}>
+          {parseInlineMarkdown(part.slice(2, -2))}
+        </strong>
+      );
+    }
+
+    // Italic: *...* or _..._
+    if ((part.startsWith('*') && part.endsWith('*') && part.length >= 2) ||
+        (part.startsWith('_') && part.endsWith('_') && part.length >= 2)) {
+      return (
+        <em key={idx}>
+          {parseInlineMarkdown(part.slice(1, -1))}
+        </em>
+      );
+    }
+
+    // Strikethrough: ~~...~~
+    if (part.startsWith('~~') && part.endsWith('~~') && part.length >= 4) {
+      return <del key={idx}>{parseInlineMarkdown(part.slice(2, -2))}</del>;
+    }
+
+    // Link: [text](url)
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      return (
+        <a
+          key={idx}
+          href={linkMatch[2]}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            color: 'var(--primary)',
+            textDecoration: 'underline',
+            fontWeight: 500
+          }}
+        >
+          {linkMatch[1]}
+        </a>
+      );
+    }
+
+    return part;
   });
 }
 
@@ -42,10 +99,53 @@ function renderMarkdown(text) {
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const rawLine = lines[i];
+    const line = rawLine.trim();
 
-    // Markdown Table detection (starts and ends with '|')
-    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+    // 1. Fenced Code Blocks (```lang ... ```)
+    if (line.startsWith('```')) {
+      const lang = line.slice(3).trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length && lines[i].trim().startsWith('```')) {
+        i++;
+      }
+      elements.push(
+        <div key={`code-${i}`} className="chat-code-container">
+          {lang && <div className="chat-code-header">{lang}</div>}
+          <pre className="chat-code-pre">
+            <code>{codeLines.join('\n')}</code>
+          </pre>
+        </div>
+      );
+      continue;
+    }
+
+    // 2. Blockquotes (> ... )
+    if (line.startsWith('>')) {
+      const quoteLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('>')) {
+        quoteLines.push(lines[i].trim().replace(/^>\s?/, ''));
+        i++;
+      }
+      elements.push(
+        <blockquote key={`quote-${i}`} className="chat-blockquote">
+          {quoteLines.map((ql, qIdx) => (
+            <p key={qIdx} style={{ margin: qIdx > 0 ? '0.35rem 0 0 0' : 0 }}>
+              {parseInlineMarkdown(ql)}
+            </p>
+          ))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // 3. Markdown Tables (starts and ends with '|')
+    if (line.startsWith('|') && line.endsWith('|')) {
       const tableLines = [];
       while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
         tableLines.push(lines[i].trim());
@@ -65,7 +165,7 @@ function renderMarkdown(text) {
               <thead>
                 <tr>
                   {headerCells.map((h, hIdx) => (
-                    <th key={hIdx}>{parseBoldAndCode(h)}</th>
+                    <th key={hIdx}>{parseInlineMarkdown(h)}</th>
                   ))}
                 </tr>
               </thead>
@@ -73,7 +173,7 @@ function renderMarkdown(text) {
                 {dataRows.map((row, rIdx) => (
                   <tr key={rIdx}>
                     {row.map((cell, cIdx) => (
-                      <td key={cIdx}>{parseBoldAndCode(cell)}</td>
+                      <td key={cIdx}>{parseInlineMarkdown(cell)}</td>
                     ))}
                   </tr>
                 ))}
@@ -85,26 +185,74 @@ function renderMarkdown(text) {
       }
     }
 
-    // Unordered list (* or -)
-    if (/^[\*\-]\s/.test(line.trim())) {
+    // 4. Headings (Levels 1 to 6)
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const content = headingMatch[2];
+      const parsed = parseInlineMarkdown(content);
+
+      if (level === 1) {
+        elements.push(
+          <h2 key={`h1-${i}`} style={{ marginTop: '1.4rem', marginBottom: '0.65rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '1.2rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.35rem' }}>
+            {parsed}
+          </h2>
+        );
+      } else if (level === 2) {
+        elements.push(
+          <h3 key={`h2-${i}`} style={{ marginTop: '1.25rem', marginBottom: '0.55rem', fontWeight: 700, color: 'var(--text-main)', fontSize: '1.08rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.25rem' }}>
+            {parsed}
+          </h3>
+        );
+      } else if (level === 3) {
+        elements.push(
+          <h4 key={`h3-${i}`} style={{ marginTop: '1.1rem', marginBottom: '0.45rem', fontWeight: 600, color: 'var(--text-main)', fontSize: '0.98rem' }}>
+            {parsed}
+          </h4>
+        );
+      } else if (level === 4) {
+        elements.push(
+          <h5 key={`h4-${i}`} style={{ marginTop: '0.95rem', marginBottom: '0.4rem', fontWeight: 600, color: 'var(--text-main)', fontSize: '0.92rem' }}>
+            {parsed}
+          </h5>
+        );
+      } else if (level === 5) {
+        elements.push(
+          <h6 key={`h5-${i}`} style={{ marginTop: '0.85rem', marginBottom: '0.35rem', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.86rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {parsed}
+          </h6>
+        );
+      } else {
+        elements.push(
+          <h6 key={`h6-${i}`} style={{ marginTop: '0.75rem', marginBottom: '0.3rem', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+            {parsed}
+          </h6>
+        );
+      }
+      i++;
+      continue;
+    }
+
+    // 5. Unordered list (*, -, +)
+    if (/^[\*\-\+]\s/.test(line)) {
       const items = [];
       const startIdx = i;
-      while (i < lines.length && /^[\*\-]\s/.test(lines[i].trim())) {
-        items.push(lines[i].trim().replace(/^[\*\-]\s+/, ''));
+      while (i < lines.length && /^[\*\-\+]\s/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[\*\-\+]\s+/, ''));
         i++;
       }
       elements.push(
         <ul key={`ul-${startIdx}`} className="chat-list">
           {items.map((item, idx) => (
-            <li key={idx}>{parseBoldAndCode(item)}</li>
+            <li key={idx}>{parseInlineMarkdown(item)}</li>
           ))}
         </ul>
       );
       continue;
     }
 
-    // Ordered list (1. 2.)
-    if (/^\d+\.\s/.test(line.trim())) {
+    // 6. Ordered list (1. 2. 3.)
+    if (/^\d+\.\s/.test(line)) {
       const items = [];
       const startIdx = i;
       while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
@@ -114,60 +262,31 @@ function renderMarkdown(text) {
       elements.push(
         <ol key={`ol-${startIdx}`} className="chat-list" style={{ listStyleType: 'decimal' }}>
           {items.map((item, idx) => (
-            <li key={idx}>{parseBoldAndCode(item)}</li>
+            <li key={idx}>{parseInlineMarkdown(item)}</li>
           ))}
         </ol>
       );
       continue;
     }
 
-    // Headings
-    if (line.startsWith('### ')) {
-      elements.push(
-        <h4 key={`h4-${i}`} style={{ marginTop: '1.1rem', marginBottom: '0.45rem', fontWeight: 600, color: 'var(--text-main)', fontSize: '0.95rem' }}>
-          {parseBoldAndCode(line.slice(4))}
-        </h4>
-      );
-      i++;
-      continue;
-    }
-    if (line.startsWith('## ')) {
-      elements.push(
-        <h3 key={`h3-${i}`} style={{ marginTop: '1.25rem', marginBottom: '0.6rem', fontWeight: 700, color: 'var(--text-main)', borderBottom: '1px solid var(--border)', paddingBottom: '0.3rem', fontSize: '1.05rem' }}>
-          {parseBoldAndCode(line.slice(3))}
-        </h3>
-      );
-      i++;
-      continue;
-    }
-    if (line.startsWith('# ')) {
-      elements.push(
-        <h2 key={`h2-${i}`} style={{ marginTop: '1.5rem', marginBottom: '0.75rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '1.15rem' }}>
-          {parseBoldAndCode(line.slice(2))}
-        </h2>
-      );
-      i++;
-      continue;
-    }
-
-    // Horizontal line
-    if (line.trim() === '---') {
+    // 7. Horizontal line (---, ***, ___)
+    if (/^(\-{3,}|\*{3,}|_{3,})$/.test(line)) {
       elements.push(<hr key={`hr-${i}`} style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />);
       i++;
       continue;
     }
 
-    // Blank line
-    if (line.trim() === '') {
+    // 8. Blank line
+    if (line === '') {
       elements.push(<div key={`empty-${i}`} style={{ height: '0.35rem' }} />);
       i++;
       continue;
     }
 
-    // Standard paragraph
+    // 9. Standard paragraph
     elements.push(
       <p key={`p-${i}`} style={{ marginBottom: '0.65rem', lineHeight: '1.6', color: 'var(--text-main)' }}>
-        {parseBoldAndCode(line)}
+        {parseInlineMarkdown(rawLine)}
       </p>
     );
     i++;
