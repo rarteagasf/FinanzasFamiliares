@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Send, Bot, User, Sparkles, Loader2, Key, Eye, EyeOff, Cpu, Zap } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Key, Eye, EyeOff, Cpu, Zap, Copy, Check, Pencil, X, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from './ui/Modal';
 
@@ -180,8 +180,8 @@ function renderMarkdown(text) {
 const PROVIDERS = {
   gemini: {
     id: 'gemini',
-    name: 'Google Gemini',
-    shortName: 'Gemini',
+    name: 'Google AI Studio (Gemini)',
+    shortName: 'AI Studio',
     badge: '1M tokens/min',
     defaultModel: 'gemini-2.0-flash',
     models: [
@@ -276,7 +276,10 @@ export default function AIChat() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [isModifyingPrompt, setIsModifyingPrompt] = useState(false);
   const chatEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -398,6 +401,7 @@ ${expensesList || 'Sin gastos'}${truncatedNotice}`;
 
     const userMessage = input.trim();
     setInput('');
+    setIsModifyingPrompt(false);
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
@@ -581,8 +585,56 @@ Instrucciones de análisis y cálculo:
     }
   };
 
+  const handleCopyText = async (text, index, label = 'Prompt') => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedIndex(index);
+      toast.success(`${label} copiado al portapapeles`);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo copiar el texto');
+    }
+  };
+
+  const handleModifyPrompt = (text) => {
+    setInput(text);
+    setIsModifyingPrompt(true);
+    toast.info('Prompt cargado para modificar');
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const len = text.length;
+        inputRef.current.setSelectionRange?.(len, len);
+        inputRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 60);
+  };
+
+  const handleDiscardModification = () => {
+    setIsModifyingPrompt(false);
+    setInput('');
+  };
+
   const handleQuickQuestion = (question) => {
     setInput(question);
+    setIsModifyingPrompt(false);
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const len = question.length;
+        inputRef.current.setSelectionRange?.(len, len);
+      }
+    }, 60);
   };
 
   const currentModelDisplayName = activeProviderInfo.models.find(m => m.id === activeModel)?.name.split(' (')[0] || activeModel;
@@ -659,9 +711,45 @@ Instrucciones de análisis y cálculo:
               <div className="avatar">
                 {msg.role === 'assistant' ? <Bot size={18} /> : <User size={18} />}
               </div>
-              <div className="message-bubble">
-                <div className="message-content">
-                  {renderMarkdown(msg.content)}
+              <div className="message-bubble-wrapper">
+                <div className="message-bubble">
+                  <div className="message-content">
+                    {renderMarkdown(msg.content)}
+                  </div>
+                </div>
+                <div className={`message-actions ${msg.role}`}>
+                  {msg.role === 'user' ? (
+                    <>
+                      <button
+                        type="button"
+                        className="msg-action-btn"
+                        onClick={() => handleCopyText(msg.content, index, 'Prompt')}
+                        title="Copiar prompt al portapapeles"
+                      >
+                        {copiedIndex === index ? <Check size={12} style={{ color: 'var(--success)' }} /> : <Copy size={12} />}
+                        <span>{copiedIndex === index ? 'Copiado' : 'Copiar'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="msg-action-btn"
+                        onClick={() => handleModifyPrompt(msg.content)}
+                        title="Cargar prompt en el cuadro de texto para editarlo"
+                      >
+                        <Pencil size={12} />
+                        <span>Modificar</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="msg-action-btn"
+                      onClick={() => handleCopyText(msg.content, index, 'Respuesta')}
+                      title="Copiar respuesta completa al portapapeles"
+                    >
+                      {copiedIndex === index ? <Check size={12} style={{ color: 'var(--success)' }} /> : <Copy size={12} />}
+                      <span>{copiedIndex === index ? 'Copiada' : 'Copiar'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -703,16 +791,40 @@ Instrucciones de análisis y cálculo:
           </div>
         )}
 
+        {isModifyingPrompt && (
+          <div className="modifying-prompt-banner">
+            <div className="modifying-prompt-banner-text">
+              <Pencil size={13} />
+              <span>Modificando prompt anterior</span>
+            </div>
+            <button
+              type="button"
+              className="modifying-prompt-discard-btn"
+              onClick={handleDiscardModification}
+              title="Cancelar edición del prompt"
+            >
+              <X size={13} />
+              <span>Descartar</span>
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSend} className="chat-input-area">
           <input
+            ref={inputRef}
             type="text"
             className="input chat-input"
-            placeholder="Haz una pregunta sobre tus finanzas..."
+            placeholder={isModifyingPrompt ? "Modifica tu prompt aquí y pulsa Enviar..." : "Haz una pregunta sobre tus finanzas..."}
             value={input}
             onChange={e => setInput(e.target.value)}
             disabled={loading}
           />
-          <button type="submit" className="btn btn-primary send-btn" disabled={loading || !input.trim()}>
+          <button
+            type="submit"
+            className="btn btn-primary send-btn"
+            disabled={loading || !input.trim()}
+            title={isModifyingPrompt ? "Enviar prompt modificado" : "Enviar"}
+          >
             <Send size={18} />
           </button>
         </form>
@@ -747,10 +859,10 @@ Instrucciones de análisis y cálculo:
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-main)' }}>
                   <Sparkles size={15} style={{ color: 'var(--primary)' }} />
-                  <span>Google Gemini</span>
+                  <span>Google AI Studio (Gemini)</span>
                 </div>
                 <span style={{ fontSize: '0.7rem', color: 'var(--success)', marginTop: '0.2rem' }}>
-                  ⭐ 1M tokens/min (Gratis)
+                  ⭐ Recomendado (1M TPM Gratis)
                 </span>
               </button>
 
@@ -771,7 +883,7 @@ Instrucciones de análisis y cálculo:
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-main)' }}>
                   <Zap size={15} style={{ color: '#f59e0b' }} />
-                  <span>Groq</span>
+                  <span>Groq (Llama / GPT-OSS)</span>
                 </div>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                   ⚡ Ultrarrápido (8k TPM)
@@ -781,11 +893,11 @@ Instrucciones de análisis y cálculo:
           </div>
 
           {modalProvider === 'gemini' ? (
-            /* CONFIGURACIÓN GOOGLE GEMINI */
+            /* CONFIGURACIÓN GOOGLE AI STUDIO (GEMINI) */
             <div>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label style={{ marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600, display: 'block' }}>
-                  Modelo Gemini
+                  Modelo Google Gemini
                 </label>
                 <select
                   className="input"
@@ -803,7 +915,7 @@ Instrucciones de análisis y cálculo:
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>
-                  <span>Clave API de Gemini</span>
+                  <span>Clave API de Google AI Studio</span>
                   {(geminiApiKey || localStorage.getItem('gemini_api_key')) && (
                     <span style={{ color: 'var(--success)', fontWeight: 500, fontSize: '0.75rem' }}>
                       ✓ Clave guardada
@@ -814,7 +926,7 @@ Instrucciones de análisis y cálculo:
                   <input
                     type={showKeyText ? 'text' : 'password'}
                     className="input"
-                    placeholder={geminiApiKey ? '••••••••••••••••••••••••••••••••' : 'Pega aquí tu clave de AI Studio...'}
+                    placeholder={geminiApiKey ? '••••••••••••••••••••••••••••••••' : 'AIzaSy... (clave de Google AI Studio)'}
                     value={inputGeminiKey}
                     onChange={e => setInputGeminiKey(e.target.value)}
                     style={{ paddingRight: '2.5rem', fontFamily: showKeyText ? 'monospace' : 'inherit' }}
@@ -836,9 +948,27 @@ Instrucciones de análisis y cálculo:
                     {showKeyText ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block' }}>
-                  Obtén tu clave gratuita en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>aistudio.google.com/apikey</a>.
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.45rem', flexWrap: 'wrap', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Google AI Studio ofrece 1M tokens/min gratuitos.
+                  </span>
+                  <a
+                    href="https://aistudio.google.com/apikey"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--primary)',
+                      fontWeight: 600,
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Obtener clave gratis en Google AI Studio <ExternalLink size={12} />
+                  </a>
+                </div>
               </div>
 
               <div style={{
