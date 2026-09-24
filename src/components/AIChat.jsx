@@ -183,17 +183,17 @@ const PROVIDERS = {
     name: 'Google AI Studio (Gemini)',
     shortName: 'AI Studio',
     badge: '1M tokens/min',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-3.6-flash',
     models: [
       {
-        id: 'gemini-2.0-flash',
-        name: 'Gemini 2.0 Flash (Recomendado, inteligente y veloz)',
-        desc: '1.000.000 tokens de contexto. Gran capacidad analítica, razonamiento y precisión matemática.'
+        id: 'gemini-3.6-flash',
+        name: 'Gemini 3.6 Flash (Recomendado, oficial y veloz)',
+        desc: '1.000.000 tokens de contexto. Modelo oficial de última generación con razonamiento rápido y cálculos precisos.'
       },
       {
-        id: 'gemini-1.5-flash',
-        name: 'Gemini 1.5 Flash (Alta estabilidad)',
-        desc: '1.000.000 tokens de contexto. Rápido y confiable para consultas financieras.'
+        id: 'gemini-3.7-flash',
+        name: 'Gemini 3.7 Flash (Razonamiento profundo)',
+        desc: '1.000.000 tokens de contexto. Mayor capacidad analítica para escenarios complejos.'
       }
     ]
   },
@@ -237,7 +237,7 @@ const getStoredGroqKey = () => {
 
 const getStoredGeminiModel = () => {
   const saved = localStorage.getItem('gemini_model');
-  if (saved && PROVIDERS.gemini.models.some(m => m.id === saved)) return saved;
+  if (saved && !saved.includes('2.0') && !saved.includes('1.5') && PROVIDERS.gemini.models.some(m => m.id === saved)) return saved;
   return PROVIDERS.gemini.defaultModel;
 };
 
@@ -389,8 +389,8 @@ ${expensesList || 'Sin gastos'}${truncatedNotice}`;
     setModalProvider(provider);
     setInputGeminiKey(localStorage.getItem('gemini_api_key') || '');
     setInputGroqKey(localStorage.getItem('groq_api_key') || '');
-    setTempGeminiModel(geminiModel);
-    setTempGroqModel(groqModel);
+    setTempGeminiModel(PROVIDERS.gemini.models.some(m => m.id === geminiModel) ? geminiModel : PROVIDERS.gemini.defaultModel);
+    setTempGroqModel(PROVIDERS.groq.models.some(m => m.id === groqModel) ? groqModel : PROVIDERS.groq.defaultModel);
     setShowKeyText(false);
     setIsKeyModalOpen(true);
   };
@@ -473,7 +473,6 @@ Instrucciones de análisis y cálculo:
               },
               contents,
               generationConfig: {
-                temperature: 0.3,
                 maxOutputTokens: 2048
               }
             })
@@ -481,24 +480,32 @@ Instrucciones de análisis y cálculo:
         };
 
         let activeGeminiModel = geminiModel;
+        if (activeGeminiModel.includes('2.0') || activeGeminiModel.includes('1.5') || !PROVIDERS.gemini.models.some(m => m.id === activeGeminiModel)) {
+          activeGeminiModel = PROVIDERS.gemini.defaultModel;
+          setGeminiModel(activeGeminiModel);
+          localStorage.setItem('gemini_model', activeGeminiModel);
+        }
+
         let response = await makeGeminiRequest(activeGeminiModel);
 
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
           const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
-          const reason = errData?.error?.details?.[0]?.reason || '';
 
-          if (reason === 'ACCESS_TOKEN_TYPE_UNSUPPORTED' || serverMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || serverMsg.includes('invalid authentication credentials')) {
-            throw new Error('Google ha devuelto el error ACCESS_TOKEN_TYPE_UNSUPPORTED para las credenciales con formato "AQ.". Puedes cambiar al proveedor Groq temporalmente en el botón "Configurar" arriba o generar una clave de API estándar en Google Cloud Console.');
-          } else if (response.status === 404 && activeGeminiModel !== 'gemini-1.5-flash') {
-            toast.info('Reintentando con Gemini 1.5 Flash...');
-            activeGeminiModel = 'gemini-1.5-flash';
-            setGeminiModel('gemini-1.5-flash');
-            localStorage.setItem('gemini_model', 'gemini-1.5-flash');
-            response = await makeGeminiRequest('gemini-1.5-flash');
-            if (!response.ok) throw new Error(serverMsg);
+          if ((response.status === 404 || serverMsg.includes('no longer available') || serverMsg.includes('gemini-3.6-flash')) && activeGeminiModel !== 'gemini-3.6-flash') {
+            toast.info('Actualizando automáticamente a Gemini 3.6 Flash...');
+            activeGeminiModel = 'gemini-3.6-flash';
+            setGeminiModel('gemini-3.6-flash');
+            localStorage.setItem('gemini_model', 'gemini-3.6-flash');
+            response = await makeGeminiRequest('gemini-3.6-flash');
+            if (!response.ok) {
+              const retryErr = await response.json().catch(() => null);
+              throw new Error(retryErr?.error?.message || serverMsg);
+            }
           } else if (response.status === 429) {
             throw new Error('Límite de peticiones alcanzado en Google Gemini (15 RPM). Espera unos segundos y vuelve a consultar.');
+          } else if (response.status === 401) {
+            throw new Error(`Error de autenticación con Google: ${serverMsg}. Revisa tu clave en el botón "Configurar".`);
           } else {
             throw new Error(serverMsg);
           }
