@@ -223,16 +223,23 @@ const PROVIDERS = {
   }
 };
 
-const getStoredProvider = () => {
-  return localStorage.getItem('ai_provider') || 'gemini';
-};
-
 const getStoredGeminiKey = () => {
   return localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
 };
 
 const getStoredGroqKey = () => {
   return localStorage.getItem('groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '';
+};
+
+const getStoredProvider = () => {
+  const saved = localStorage.getItem('ai_provider');
+  if (saved && PROVIDERS[saved]) return saved;
+  const geminiKey = getStoredGeminiKey().trim();
+  const groqKey = getStoredGroqKey().trim();
+  // Si la clave de Gemini usa el formato nuevo 'AQ.' (incompatible con REST directo) y Groq está disponible, preferir Groq
+  if (geminiKey.startsWith('AQ.') && groqKey) return 'groq';
+  if (!geminiKey && groqKey) return 'groq';
+  return 'gemini';
 };
 
 const getStoredGeminiModel = () => {
@@ -522,19 +529,27 @@ Instrucciones de análisis y cálculo:
           const errData = await response.json().catch(() => null);
           const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
 
+          const isUnsupportedKeyFormat = serverMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || (errData?.error?.details || []).some(d => d.reason === 'ACCESS_TOKEN_TYPE_UNSUPPORTED');
           const isOverloaded = response.status === 503 || serverMsg.includes('high demand') || serverMsg.includes('temporarily overloaded') || serverMsg.includes('Resource has been exhausted');
+          const isAuthError = response.status === 401 || isUnsupportedKeyFormat;
           const groqFallbackKey = (groqApiKey || getStoredGroqKey() || '').trim();
 
-          // If Gemini is overloaded and we have a Groq key, seamlessly fallback!
-          if (isOverloaded && groqFallbackKey) {
-            toast.info('Google Gemini saturado. Respondiendo mediante Groq...');
+          // If Gemini is overloaded or rejected by auth (e.g. AQ. key format) and we have a Groq key, seamlessly fallback!
+          if ((isOverloaded || isAuthError) && groqFallbackKey) {
+            const toastText = isAuthError
+              ? 'Clave Gemini con formato no compatible con REST de Google. Respondiendo mediante Groq...'
+              : 'Google Gemini con alta demanda mundial. Respondiendo mediante Groq...';
+            toast.info(toastText);
             setStatusMessage('Obteniendo respuesta vía Groq...');
             const fallbackGroqRes = await makeGroqRequest(PROVIDERS.groq.defaultModel, groqFallbackKey);
             if (fallbackGroqRes.ok) {
               const groqData = await fallbackGroqRes.json();
               const groqContent = groqData?.choices?.[0]?.message?.content || '';
               if (groqContent) {
-                assistantMessage = `> ⚡ *Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. La respuesta se ha generado automáticamente con Groq (${PROVIDERS.groq.defaultModel}) para no hacerte esperar.*\n\n` + groqContent;
+                const headerNote = isAuthError
+                  ? `> ⚡ *Aviso: Tu clave de Gemini tiene el formato nuevo de Google AI Studio ('AQ...'), que la API REST de Google rechaza actualmente (ACCESS_TOKEN_TYPE_UNSUPPORTED). La respuesta se ha generado automáticamente con Groq (${PROVIDERS.groq.defaultModel}) para no interrumpir el servicio.*\n\n`
+                  : `> ⚡ *Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. La respuesta se ha generado automáticamente con Groq (${PROVIDERS.groq.defaultModel}) para no hacerte esperar.*\n\n`;
+                assistantMessage = headerNote + groqContent;
                 setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
                 return;
               }
@@ -542,7 +557,9 @@ Instrucciones de análisis y cálculo:
           }
 
           if (isOverloaded) {
-            throw new Error('Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. Espera unos segundos o pulsa "Configurar" arriba para alternar al motor Groq.');
+            throw new Error('Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. Espera unos segundos o pulsa en Ajustes (icono ⚙️) para alternar al motor Groq.');
+          } else if (isUnsupportedKeyFormat || (response.status === 401 && currentKey.startsWith('AQ.'))) {
+            throw new Error('Google AI Studio ha emitido una clave con el nuevo prefijo "AQ.", el cual es actualmente rechazado por el endpoint REST directo de Google (error ACCESS_TOKEN_TYPE_UNSUPPORTED). Soluciones: 1) Pulsa en Ajustes (icono ⚙️) y cambia al motor Groq, o 2) Genera una clave tradicional ("AIzaSy...") desde Google Cloud Console e introdúcela.');
           } else if ((response.status === 404 || serverMsg.includes('no longer available') || serverMsg.includes('gemini-3.6-flash')) && activeGeminiModel !== 'gemini-3.6-flash') {
             toast.info('Actualizando automáticamente a Gemini 3.6 Flash...');
             activeGeminiModel = 'gemini-3.6-flash';
@@ -556,7 +573,7 @@ Instrucciones de análisis y cálculo:
           } else if (response.status === 429) {
             throw new Error('Límite de peticiones alcanzado en Google Gemini (15 RPM). Espera unos segundos y vuelve a consultar.');
           } else if (response.status === 401) {
-            throw new Error(`Error de autenticación con Google: ${serverMsg}. Revisa tu clave en el botón "Configurar".`);
+            throw new Error(`Error de autenticación con Google: ${serverMsg}. Revisa tu clave en el botón de ajustes (icono ⚙️).`);
           } else {
             throw new Error(serverMsg);
           }
@@ -981,26 +998,41 @@ Instrucciones de análisis y cálculo:
                     {showKeyText ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.45rem', flexWrap: 'wrap', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Google AI Studio ofrece 1M tokens/min gratuitos.
-                  </span>
-                  <a
-                    href="https://aistudio.google.com/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.45rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.35rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Formato estándar compatible: <code>AIzaSy...</code>
+                    </span>
+                    <a
+                      href="https://console.cloud.google.com/apis/credentials"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.75rem',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Google Cloud Credentials <ExternalLink size={12} />
+                    </a>
+                  </div>
+                  {((inputGeminiKey || geminiApiKey || '').trim().startsWith('AQ.')) && (
+                    <div style={{
                       fontSize: '0.75rem',
-                      color: 'var(--primary)',
-                      fontWeight: 600,
-                      textDecoration: 'underline'
-                    }}
-                  >
-                    Obtener clave gratis en Google AI Studio <ExternalLink size={12} />
-                  </a>
+                      color: '#d97706',
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      padding: '0.4rem 0.65rem',
+                      borderRadius: '6px',
+                      lineHeight: '1.4'
+                    }}>
+                      ⚠️ <strong>Aviso formato clave</strong>: Las claves que empiezan por <code>AQ.</code> son rechazadas actualmente por la API REST de Google con error de autenticación. Genera una clave tradicional (<code>AIza...</code>) en Google Cloud Console o utiliza el motor Groq.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1015,7 +1047,7 @@ Instrucciones de análisis y cálculo:
                 lineHeight: '1.4'
               }}>
                 <p style={{ margin: 0 }}>
-                  💡 <strong>Disponible en todos tus dispositivos</strong>: Puedes definir la variable <code>VITE_GEMINI_API_KEY</code> en Vercel para que el asistente funcione automáticamente en tu móvil y ordenador sin configurar claves manuales.
+                  💡 <strong>Disponible en todos tus dispositivos</strong>: Puedes definir la variable <code>VITE_GEMINI_API_KEY</code> (o <code>VITE_GROQ_API_KEY</code>) en Vercel para que el asistente funcione automáticamente en tu móvil y ordenador sin configurar claves manuales.
                 </p>
               </div>
             </div>
