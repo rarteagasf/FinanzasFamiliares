@@ -447,6 +447,26 @@ Instrucciones de análisis y cálculo:
 
       let assistantMessage = '';
 
+      const makeGroqRequest = async (modelToUse, apiKeyToUse = currentKey) => {
+        return await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKeyToUse}`
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...cleanHistory.map(msg => ({ role: msg.role, content: msg.content })),
+              { role: 'user', content: userMessage }
+            ],
+            temperature: 0.3,
+            max_tokens: 2000
+          })
+        });
+      };
+
       if (isGemini) {
         // === LLAMADA A GOOGLE GEMINI ===
         const contents = [
@@ -473,7 +493,10 @@ Instrucciones de análisis y cálculo:
               },
               contents,
               generationConfig: {
-                maxOutputTokens: 2048
+                maxOutputTokens: 8192,
+                thinkingConfig: {
+                  thinkingLevel: 'low'
+                }
               }
             })
           });
@@ -488,11 +511,39 @@ Instrucciones de análisis y cálculo:
 
         let response = await makeGeminiRequest(activeGeminiModel);
 
+        // Auto-retry once for 503 / High demand temporary spikes
+        if (response.status === 503) {
+          setStatusMessage('Google Gemini con alta demanda temporal. Reintentando en 1.5s...');
+          await new Promise(r => setTimeout(r, 1500));
+          response = await makeGeminiRequest(activeGeminiModel);
+        }
+
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
           const serverMsg = errData?.error?.message || response.statusText || `Error HTTP ${response.status}`;
 
-          if ((response.status === 404 || serverMsg.includes('no longer available') || serverMsg.includes('gemini-3.6-flash')) && activeGeminiModel !== 'gemini-3.6-flash') {
+          const isOverloaded = response.status === 503 || serverMsg.includes('high demand') || serverMsg.includes('temporarily overloaded') || serverMsg.includes('Resource has been exhausted');
+          const groqFallbackKey = (groqApiKey || getStoredGroqKey() || '').trim();
+
+          // If Gemini is overloaded and we have a Groq key, seamlessly fallback!
+          if (isOverloaded && groqFallbackKey) {
+            toast.info('Google Gemini saturado. Respondiendo mediante Groq...');
+            setStatusMessage('Obteniendo respuesta vía Groq...');
+            const fallbackGroqRes = await makeGroqRequest(PROVIDERS.groq.defaultModel, groqFallbackKey);
+            if (fallbackGroqRes.ok) {
+              const groqData = await fallbackGroqRes.json();
+              const groqContent = groqData?.choices?.[0]?.message?.content || '';
+              if (groqContent) {
+                assistantMessage = `> ⚡ *Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. La respuesta se ha generado automáticamente con Groq (${PROVIDERS.groq.defaultModel}) para no hacerte esperar.*\n\n` + groqContent;
+                setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+                return;
+              }
+            }
+          }
+
+          if (isOverloaded) {
+            throw new Error('Los servidores gratuitos de Google Gemini están experimentando alta demanda mundial en este momento. Espera unos segundos o pulsa "Configurar" arriba para alternar al motor Groq.');
+          } else if ((response.status === 404 || serverMsg.includes('no longer available') || serverMsg.includes('gemini-3.6-flash')) && activeGeminiModel !== 'gemini-3.6-flash') {
             toast.info('Actualizando automáticamente a Gemini 3.6 Flash...');
             activeGeminiModel = 'gemini-3.6-flash';
             setGeminiModel('gemini-3.6-flash');
@@ -512,37 +563,22 @@ Instrucciones de análisis y cálculo:
         }
 
         const resData = await response.json();
-        assistantMessage = resData?.candidates?.[0]?.content?.parts?.[0]?.text || 'No he recibido respuesta de Google Gemini.';
+        const candidate = resData?.candidates?.[0];
+        const textParts = candidate?.content?.parts
+          ?.filter(p => !p.thought && p.text)
+          ?.map(p => p.text) || [];
+
+        assistantMessage = textParts.join('').trim() || candidate?.content?.parts?.[0]?.text || 'No he recibido respuesta de Google Gemini.';
 
       } else {
         // === LLAMADA A GROQ ===
-        const makeGroqRequest = async (modelToUse) => {
-          return await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${currentKey}`
-            },
-            body: JSON.stringify({
-              model: modelToUse,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                ...cleanHistory.map(msg => ({ role: msg.role, content: msg.content })),
-                { role: 'user', content: userMessage }
-              ],
-              temperature: 0.3,
-              max_tokens: 1500
-            })
-          });
-        };
-
         let activeGroqModel = groqModel;
         if (activeGroqModel.includes('llama') || !PROVIDERS.groq.models.some(m => m.id === activeGroqModel)) {
           activeGroqModel = PROVIDERS.groq.defaultModel;
           setGroqModel(activeGroqModel);
           localStorage.setItem('groq_model', activeGroqModel);
         }
-        let response = await makeGroqRequest(activeGroqModel);
+        let response = await makeGroqRequest(activeGroqModel, currentKey);
 
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -554,7 +590,7 @@ Instrucciones de análisis y cálculo:
             activeGroqModel = fallbackModel;
             setGroqModel(fallbackModel);
             localStorage.setItem('groq_model', fallbackModel);
-            response = await makeGroqRequest(fallbackModel);
+            response = await makeGroqRequest(fallbackModel, currentKey);
           } else if (response.status === 429 || serverMsg.includes('TPM') || serverMsg.includes('Tokens Per Minute') || serverMsg.includes('Request too large')) {
             throw new Error('Límite de tokens por minuto (TPM) alcanzado en el plan gratuito de Groq. Espera unos segundos y vuelve a intentarlo.');
           } else {
