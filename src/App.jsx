@@ -301,7 +301,7 @@ function App() {
               ) : (
                 <Bell size={18} />
               )}
-              <span>Recordatorios</span>
+              <span>{pendingRemindersCount === 1 ? 'Recordatorio' : 'Recordatorios'}</span>
             </button>
           </div>
         </div>

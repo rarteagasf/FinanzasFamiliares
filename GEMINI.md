@@ -12,7 +12,7 @@
 - **Supresión de Barras en Pestañas Horizontales**: Todo contenedor de navegación con desplazamiento horizontal (`.nav-tabs`) debe incluir `scrollbar-width: none`, `-ms-overflow-style: none` y `::-webkit-scrollbar { display: none }` tanto en estilos globales de Stitches como en CSS global.
 
 ## 3. Control de Versiones y Sincronización
-- **Flujo de Git/GitHub**: Cuando se solicite actualizar el repositorio de GitHub:
+- **Flujo de Git/GitHub**: Tras cada cambio realizado en el proyecto (o cuando se solicite expresamente), actualizar y sincronizar siempre el repositorio de GitHub:
   1. Verificar `git status` y `git diff`.
   2. Compilar con `npm run build` para asegurar cero errores de build.
   3. Ejecutar `git add`, generar commit con mensaje semántico convencional (`type(scope): description`) y hacer `git push origin main`.
