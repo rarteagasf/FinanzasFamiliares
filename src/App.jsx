@@ -272,26 +272,23 @@ function App() {
             <button
               className={activeTab === 'reminders' ? 'active' : ''}
               onClick={() => setActiveTab('reminders')}
-              style={{ position: 'relative' }}
             >
               <Bell size={18} />
               <span>Recordatorios</span>
               {pendingRemindersCount > 0 && (
                 <span style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-4px',
                   background: 'var(--danger)',
                   color: 'white',
-                  borderRadius: '50%',
-                  width: '18px',
+                  borderRadius: '9999px',
+                  minWidth: '18px',
                   height: '18px',
-                  display: 'flex',
+                  padding: '0 5px',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '0.65rem',
+                  fontSize: '0.6875rem',
                   fontWeight: 'bold',
-                  boxShadow: '0 0 0 2px var(--bg-card)'
+                  lineHeight: 1
                 }}>
                   {pendingRemindersCount}
                 </span>

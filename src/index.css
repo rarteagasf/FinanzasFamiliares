@@ -569,7 +569,14 @@ input[type="number"] {
   appearance: textfield;
 }
 
+/* ============================================================
+   SUPPRESS NAV TABS SCROLLBARS
+   ============================================================ */
+.nav-tabs {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 
-
-
-
+.nav-tabs::-webkit-scrollbar {
+  display: none;
+}

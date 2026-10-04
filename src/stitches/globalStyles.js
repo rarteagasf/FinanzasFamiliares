@@ -403,6 +403,11 @@ export const globalStyles = globalCss({
     borderRadius: '12px',
     overflowX: 'auto',
     WebkitOverflowScrolling: 'touch',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
+    '&::-webkit-scrollbar': {
+      display: 'none',
+    },
     '@media (max-width: 640px)': {
       width: '100%',
       justifyContent: 'flex-start',
@@ -419,6 +424,9 @@ export const globalStyles = globalCss({
       whiteSpace: 'nowrap',
       transition: 'all 0.2s ease',
       fontFamily: '"Outfit", "Inter", system-ui, sans-serif',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.5rem',
       '&:hover': {
         color: 'var(--text-main)',
         background: 'var(--bg-card-hover)',
