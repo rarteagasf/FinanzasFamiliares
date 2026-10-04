@@ -59,6 +59,16 @@ function App() {
     } catch (err) {
       console.warn('Orientation unlock not supported:', err);
     }
+
+    const handleWheel = (e) => {
+      if (e.target instanceof HTMLInputElement && e.target.type === 'number') {
+        e.target.blur();
+      } else if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
   useEffect(() => {

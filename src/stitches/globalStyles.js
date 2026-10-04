@@ -18,6 +18,14 @@ export const globalStyles = globalCss({
   'input, select, textarea, button': {
     fontFamily: '"Outfit", "Inter", system-ui, sans-serif',
   },
+  'input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button': {
+    WebkitAppearance: 'none',
+    margin: 0,
+  },
+  'input[type=number]': {
+    MozAppearance: 'textfield',
+    appearance: 'textfield',
+  },
   '::selection': {
     backgroundColor: 'var(--primary)',
     color: 'white',

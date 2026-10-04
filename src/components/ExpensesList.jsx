@@ -376,7 +376,7 @@ export default function ExpensesList() {
                   <tr key={expense.id} onDoubleClick={() => !isEditing && startInlineEditing(expense)}>
                     {isEditing ? (
                       <>
-                        <td><input type="number" className="input" style={{ width: '60px', padding: '0.25rem' }} value={inlineForm.dia} onChange={e => setInlineForm({...inlineForm, dia: parseIntNum(e.target.value)})} min="1" max="31" onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
+                        <td><input type="number" className="input" style={{ width: '60px', padding: '0.25rem' }} value={inlineForm.dia} onChange={e => setInlineForm({...inlineForm, dia: parseIntNum(e.target.value)})} min="1" max="31" onWheel={e => e.target.blur()} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} /></td>
                         <td>
                           <input type="text" className="input" style={{ width: '100%', padding: '0.25rem', marginBottom: '0.25rem' }} value={inlineForm.concepto} onChange={e => setInlineForm({...inlineForm, concepto: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineEditing(); if (e.key === 'Escape') cancelInlineEditing(); }} />
                           <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', flexWrap: 'wrap' }}>
@@ -511,7 +511,7 @@ export default function ExpensesList() {
       {/* Modal Añadir/Editar Gasto */}
       <Modal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} title={editingExpense ? "Editar Gasto" : "Nuevo Gasto"}>
         <form onSubmit={saveExpense}>
-          <div className="form-group"><label>Día</label><input type="number" className="input" value={formData.dia} onChange={e => setFormData({...formData, dia: parseInt(e.target.value)})} required min="1" max="31" /></div>
+          <div className="form-group"><label>Día</label><input type="number" className="input" value={formData.dia} onChange={e => setFormData({...formData, dia: parseInt(e.target.value)})} onWheel={e => e.target.blur()} required min="1" max="31" /></div>
           <div className="form-group"><label>Concepto</label><input type="text" className="input" value={formData.concepto} onChange={e => setFormData({...formData, concepto: e.target.value})} required /></div>
           <div className="form-group">
             <label>Importe (€)</label>
