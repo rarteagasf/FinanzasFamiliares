@@ -48,6 +48,7 @@ export const globalStyles = globalCss({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: '1rem',
+    flexWrap: 'wrap',
     '@media (max-width: 640px)': {
       flexDirection: 'column',
       alignItems: 'stretch',
@@ -72,6 +73,7 @@ export const globalStyles = globalCss({
     alignItems: 'center',
     gap: '0.5rem',
     color: 'var(--text-muted)',
+    flexWrap: 'wrap',
     '& select': {
       padding: '0.25rem',
       fontSize: '0.875rem',
@@ -84,7 +86,7 @@ export const globalStyles = globalCss({
     },
   },
   '.app-container': {
-    maxWidth: '1200px',
+    maxWidth: '1280px',
     marginLeft: 'auto',
     marginRight: 'auto',
     padding: '2rem',
@@ -397,10 +399,11 @@ export const globalStyles = globalCss({
   },
   '.nav-tabs': {
     display: 'flex',
-    gap: '0.5rem',
+    gap: '0.375rem',
     background: 'var(--bg-card)',
-    padding: '0.5rem',
+    padding: '0.375rem 0.5rem',
     borderRadius: '12px',
+    flexShrink: 0,
     overflowX: 'auto',
     WebkitOverflowScrolling: 'touch',
     scrollbarWidth: 'none',
@@ -416,7 +419,7 @@ export const globalStyles = globalCss({
       background: 'transparent',
       border: 'none',
       color: 'var(--text-muted)',
-      padding: '0.5rem 1rem',
+      padding: '0.5rem 0.85rem',
       borderRadius: '8px',
       cursor: 'pointer',
       fontWeight: 500,
@@ -426,7 +429,8 @@ export const globalStyles = globalCss({
       fontFamily: '"Outfit", "Inter", system-ui, sans-serif',
       display: 'inline-flex',
       alignItems: 'center',
-      gap: '0.5rem',
+      gap: '0.4rem',
+      flexShrink: 0,
       '&:hover': {
         color: 'var(--text-main)',
         background: 'var(--bg-card-hover)',

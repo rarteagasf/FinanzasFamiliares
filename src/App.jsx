@@ -272,27 +272,36 @@ function App() {
             <button
               className={activeTab === 'reminders' ? 'active' : ''}
               onClick={() => setActiveTab('reminders')}
+              style={
+                pendingRemindersCount > 0 && activeTab !== 'reminders'
+                  ? { color: 'var(--danger)' }
+                  : undefined
+              }
             >
-              <Bell size={18} />
-              <span>Recordatorios</span>
-              {pendingRemindersCount > 0 && (
-                <span style={{
-                  background: 'var(--danger)',
-                  color: 'white',
-                  borderRadius: '9999px',
-                  minWidth: '18px',
-                  height: '18px',
-                  padding: '0 5px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.6875rem',
-                  fontWeight: 'bold',
-                  lineHeight: 1
-                }}>
+              {pendingRemindersCount > 0 ? (
+                <span
+                  style={{
+                    background: activeTab === 'reminders' ? 'white' : 'var(--danger)',
+                    color: activeTab === 'reminders' ? 'var(--primary)' : 'white',
+                    borderRadius: '9999px',
+                    minWidth: '20px',
+                    height: '20px',
+                    padding: '0 5px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    flexShrink: 0,
+                  }}
+                >
                   {pendingRemindersCount}
                 </span>
+              ) : (
+                <Bell size={18} />
               )}
+              <span>Recordatorios</span>
             </button>
           </div>
         </div>
