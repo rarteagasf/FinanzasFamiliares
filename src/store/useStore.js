@@ -63,34 +63,76 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+import initialData from '../data/initialData.json';
+
+const STORAGE_KEY = 'finanzas_cache_v1';
+
+const getInitialCache = () => {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && Array.isArray(parsed.months) && parsed.months.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Error al leer caché local:', e);
+  }
+  return initialData;
+};
+
+const defaultSeed = getInitialCache();
+const defaultActiveMonth = defaultSeed.months?.find(m => m.status === 'open') || defaultSeed.months?.[0];
+const defaultExpenses = defaultSeed.expenses?.filter(e => e.month_id === defaultActiveMonth?.id) || [];
+const defaultBalance = defaultSeed.balances?.find(b => b.month_id === defaultActiveMonth?.id) || {
+  caixabank: 0,
+  hucha: 0,
+  ing_nomina: 0,
+  ing_naranja: 0
+};
+
+// Calculate initial previous pending expenses for the active month
+const initialSortedMonths = [...(defaultSeed.months || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+const initialCurIdx = initialSortedMonths.findIndex(m => m.id === defaultActiveMonth?.id);
+let initialPrevPending = [];
+if (initialCurIdx > 0) {
+  const prevM = initialSortedMonths[initialCurIdx - 1];
+  initialPrevPending = (defaultSeed.expenses || [])
+    .filter(e => e.month_id === prevM.id && e.estado === 'X')
+    .map(e => ({ ...e, isFromPreviousMonth: true, originalMonthName: prevM.name }));
+}
+
 export const useStore = create((set, get) => ({
   theme: localStorage.getItem('theme') || 'dark',
-  months: [],
-  selectedMonthId: null,
+  months: defaultSeed.months || [],
+  selectedMonthId: defaultActiveMonth?.id || null,
   
-  entities: [],
-  expenses: [],
-  prevPendingExpenses: [],
-  loans: [],
-  cards: [],
-  balances: {
-    caixabank: 0,
-    hucha: 0,
-    ing_nomina: 0,
-    ing_naranja: 0
-  },
-  reminders: [],
+  entities: defaultSeed.entities || [],
+  expenses: defaultExpenses,
+  prevPendingExpenses: initialPrevPending,
+  loans: defaultSeed.loans || [],
+  cards: defaultSeed.cards || [],
+  balances: defaultBalance,
+  reminders: defaultSeed.reminders || [],
   
   loading: false,
+  isOffline: false,
 
   // Load Initial Data
   fetchInitialData: async () => {
     set({ loading: true });
     try {
       // Fetch months & entities
-      const { data: monthsData } = await supabase.from('months').select('*').order('created_at', { ascending: false });
-      const { data: entitiesData } = await supabase.from('entities').select('*');
+      const { data: monthsData, error: monthsError } = await supabase.from('months').select('*').order('created_at', { ascending: false });
+      const { data: entitiesData, error: entitiesError } = await supabase.from('entities').select('*');
       
+      if (monthsError || !monthsData || monthsData.length === 0) {
+        console.warn('Supabase no devolvió meses (posible fallo de conexión o 401). Manteniendo datos locales.');
+        set({ loading: false, isOffline: true });
+        return;
+      }
+
       const activeMonth = monthsData?.find(m => m.status === 'open') || monthsData?.[0];
       
       // Fetch global data
@@ -104,14 +146,26 @@ export const useStore = create((set, get) => ({
         selectedMonthId: activeMonth?.id || null,
         loans: loansData || [],
         cards: cardsData || [],
-        reminders: remindersData || []
+        reminders: remindersData || [],
+        isOffline: false
       });
 
       if (activeMonth) {
         await get().fetchMonthData(activeMonth.id);
       }
+
+      // Update local storage cache in the background
+      try {
+        const fullExport = await get().exportAllData();
+        if (fullExport.months?.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(fullExport));
+        }
+      } catch (cacheErr) {
+        console.warn('Error al guardar en caché local:', cacheErr);
+      }
     } catch (err) {
       console.error('Error fetching initial data:', err);
+      set({ isOffline: true });
     } finally {
       set({ loading: false });
     }
@@ -128,32 +182,64 @@ export const useStore = create((set, get) => ({
   fetchMonthData: async (monthId) => {
     set({ loading: true, selectedMonthId: monthId });
     
-    const { data: expensesData } = await supabase.from('expenses').select('*').eq('month_id', monthId);
-    const { data: balancesData } = await supabase.from('balances').select('*').eq('month_id', monthId).single();
-    
-    // Fetch previous month's unpaid expenses
-    const { months } = get();
-    const sorted = [...months].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    const currentIndex = sorted.findIndex(m => m.id === monthId);
-    let prevExpensesData = [];
-    if (currentIndex > 0) {
-      const prevMonth = sorted[currentIndex - 1];
-      const { data: prevData } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('month_id', prevMonth.id)
-        .eq('estado', 'X'); // Only unpaid
-      if (prevData) {
-        prevExpensesData = prevData.map(e => ({ ...e, isFromPreviousMonth: true, originalMonthName: prevMonth.name }));
+    try {
+      const { data: expensesData, error: expError } = await supabase.from('expenses').select('*').eq('month_id', monthId);
+      const { data: balancesData, error: balError } = await supabase.from('balances').select('*').eq('month_id', monthId).single();
+      
+      if (expError || !expensesData) {
+        console.warn('Supabase no devolvió gastos para el mes', monthId, '(error o sin conexión). Usando datos en caché.');
+        const cache = getInitialCache();
+        const cachedExp = cache.expenses?.filter(e => e.month_id === monthId) || [];
+        const cachedBal = cache.balances?.find(b => b.month_id === monthId) || { caixabank: 0, hucha: 0, ing_nomina: 0, ing_naranja: 0 };
+        
+        const sorted = [...(cache.months || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        const currentIndex = sorted.findIndex(m => m.id === monthId);
+        let prevExpensesData = [];
+        if (currentIndex > 0) {
+          const prevMonth = sorted[currentIndex - 1];
+          prevExpensesData = (cache.expenses || [])
+            .filter(e => e.month_id === prevMonth.id && e.estado === 'X')
+            .map(e => ({ ...e, isFromPreviousMonth: true, originalMonthName: prevMonth.name }));
+        }
+
+        set({ 
+          expenses: cachedExp,
+          prevPendingExpenses: prevExpensesData,
+          balances: cachedBal,
+          loading: false,
+          isOffline: true
+        });
+        return;
       }
+
+      // Fetch previous month's unpaid expenses
+      const { months } = get();
+      const sorted = [...months].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const currentIndex = sorted.findIndex(m => m.id === monthId);
+      let prevExpensesData = [];
+      if (currentIndex > 0) {
+        const prevMonth = sorted[currentIndex - 1];
+        const { data: prevData } = await supabase
+          .from('expenses')
+          .select('*')
+          .eq('month_id', prevMonth.id)
+          .eq('estado', 'X'); // Only unpaid
+        if (prevData) {
+          prevExpensesData = prevData.map(e => ({ ...e, isFromPreviousMonth: true, originalMonthName: prevMonth.name }));
+        }
+      }
+      
+      set({ 
+        expenses: expensesData || [],
+        prevPendingExpenses: prevExpensesData,
+        balances: balancesData || { caixabank: 0, hucha: 0, ing_nomina: 0, ing_naranja: 0 },
+        loading: false,
+        isOffline: false
+      });
+    } catch (err) {
+      console.error('Error in fetchMonthData:', err);
+      set({ loading: false, isOffline: true });
     }
-    
-    set({ 
-      expenses: expensesData || [],
-      prevPendingExpenses: prevExpensesData,
-      balances: balancesData || { caixabank: 0, hucha: 0, ing_nomina: 0, ing_naranja: 0 },
-      loading: false
-    });
   },
 
   addExpense: async (expense) => {
@@ -177,6 +263,7 @@ export const useStore = create((set, get) => ({
     const { id: _, created_at: __, month_id: ___, loanId: ____, cardId: _____, ...cleanUpdates } = updates;
     const { error } = await supabase.from('expenses').update(cleanUpdates).eq('id', id);
     if (error) {
+      console.error('Error al actualizar gasto en Supabase:', error);
       set({ expenses: prevExpenses }); // Revert on error
     }
     return { error };

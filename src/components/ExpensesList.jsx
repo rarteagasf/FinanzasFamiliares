@@ -109,7 +109,7 @@ export default function ExpensesList() {
         onConfirm: async () => {
           const { error } = await updateExpense(editingExpense.id, saveData);
           if (!error) toast.success('Gasto actualizado');
-          else toast.error('Error al actualizar');
+          else toast.error('Error al actualizar: ' + (error?.message || 'Error en el servidor'));
           setIsExpenseModalOpen(false);
         }
       });
@@ -208,7 +208,7 @@ export default function ExpensesList() {
           toast.success('Guardado');
           setInlineEditingId(null);
         } else {
-          toast.error('Error al guardar');
+          toast.error('Error al guardar: ' + (error?.message || 'Error en el servidor'));
         }
       }
     });
@@ -446,7 +446,10 @@ export default function ExpensesList() {
                                 isOpen: true,
                                 title: 'Confirmar cambio de entidad',
                                 message: `¿Estás seguro de cambiar la entidad de "${cleanConceptName}" de "${oldValue}" a "${newValue}"?`,
-                                onConfirm: () => updateExpense(expense.id, { entidad: newValue }),
+                                onConfirm: async () => {
+                                  const { error } = await updateExpense(expense.id, { entidad: newValue });
+                                  if (error) toast.error('Error al cambiar entidad: ' + (error?.message || 'Error en el servidor'));
+                                },
                               });
                             }}
                           >
@@ -476,7 +479,10 @@ export default function ExpensesList() {
                                 isOpen: true,
                                 title: 'Confirmar cambio de estado',
                                 message: `¿Estás seguro de cambiar el estado de "${cleanConceptName}" de "${getEstadoLabel(oldValue)}" a "${getEstadoLabel(newValue)}"?`,
-                                onConfirm: () => updateExpense(expense.id, { estado: newValue }),
+                                onConfirm: async () => {
+                                  const { error } = await updateExpense(expense.id, { estado: newValue });
+                                  if (error) toast.error('Error al cambiar estado: ' + (error?.message || 'Error en el servidor'));
+                                },
                               });
                             }}
                           >
