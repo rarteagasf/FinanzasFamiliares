@@ -107,16 +107,18 @@ export default function ExpensesList() {
         title: 'Confirmar actualización',
         message: `¿Estás seguro de guardar los cambios para el gasto "${formData.concepto}"?`,
         onConfirm: async () => {
-          const { error } = await updateExpense(editingExpense.id, saveData);
-          if (!error) toast.success('Gasto actualizado');
-          else toast.error('Error al actualizar: ' + (error?.message || 'Error en el servidor'));
+          const res = await updateExpense(editingExpense.id, saveData);
+          if (res?.savedLocally) toast.info('Gasto actualizado en el dispositivo');
+          else if (!res?.error) toast.success('Gasto actualizado');
+          else toast.error('Error al actualizar: ' + (res.error?.message || 'Error en el servidor'));
           setIsExpenseModalOpen(false);
         }
       });
     } else {
-      const { error } = await addExpense(saveData);
-      if (!error) toast.success('Gasto añadido');
-      else toast.error('Error al añadir: ' + (error?.message || ''));
+      const res = await addExpense(saveData);
+      if (res?.savedLocally) toast.info('Gasto añadido en el dispositivo');
+      else if (!res?.error) toast.success('Gasto añadido');
+      else toast.error('Error al añadir: ' + (res.error?.message || ''));
       setIsExpenseModalOpen(false);
     }
   };
@@ -129,8 +131,10 @@ export default function ExpensesList() {
       title: 'Confirmar eliminación',
       message: `¿Estás seguro de eliminar el gasto "${concept || ''}"?`,
       onConfirm: async () => {
-        const { error } = await deleteExpense(id);
-        if (!error) toast.success('Gasto eliminado');
+        const res = await deleteExpense(id);
+        if (res?.savedLocally) toast.info('Gasto eliminado en el dispositivo');
+        else if (!res?.error) toast.success('Gasto eliminado');
+        else toast.error('Error al eliminar: ' + (res.error?.message || 'Error en el servidor'));
       }
     });
   };
@@ -203,12 +207,15 @@ export default function ExpensesList() {
       title: 'Confirmar edición en línea',
       message: `¿Estás seguro de guardar los cambios del gasto "${inlineForm.concepto}"?`,
       onConfirm: async () => {
-        const { error } = await updateExpense(inlineEditingId, saveData);
-        if (!error) {
+        const res = await updateExpense(inlineEditingId, saveData);
+        if (res?.savedLocally) {
+          toast.info('Guardado en el dispositivo');
+          setInlineEditingId(null);
+        } else if (!res?.error) {
           toast.success('Guardado');
           setInlineEditingId(null);
         } else {
-          toast.error('Error al guardar: ' + (error?.message || 'Error en el servidor'));
+          toast.error('Error al guardar: ' + (res.error?.message || 'Error en el servidor'));
         }
       }
     });
@@ -447,8 +454,10 @@ export default function ExpensesList() {
                                 title: 'Confirmar cambio de entidad',
                                 message: `¿Estás seguro de cambiar la entidad de "${cleanConceptName}" de "${oldValue}" a "${newValue}"?`,
                                 onConfirm: async () => {
-                                  const { error } = await updateExpense(expense.id, { entidad: newValue });
-                                  if (error) toast.error('Error al cambiar entidad: ' + (error?.message || 'Error en el servidor'));
+                                  const res = await updateExpense(expense.id, { entidad: newValue });
+                                  if (res?.savedLocally) toast.info('Entidad actualizada en el dispositivo');
+                                  else if (!res?.error) toast.success('Entidad actualizada');
+                                  else toast.error('Error al cambiar entidad: ' + (res.error?.message || 'Error en el servidor'));
                                 },
                               });
                             }}
@@ -480,8 +489,10 @@ export default function ExpensesList() {
                                 title: 'Confirmar cambio de estado',
                                 message: `¿Estás seguro de cambiar el estado de "${cleanConceptName}" de "${getEstadoLabel(oldValue)}" a "${getEstadoLabel(newValue)}"?`,
                                 onConfirm: async () => {
-                                  const { error } = await updateExpense(expense.id, { estado: newValue });
-                                  if (error) toast.error('Error al cambiar estado: ' + (error?.message || 'Error en el servidor'));
+                                  const res = await updateExpense(expense.id, { estado: newValue });
+                                  if (res?.savedLocally) toast.info('Estado actualizado en el dispositivo');
+                                  else if (!res?.error) toast.success('Estado actualizado');
+                                  else toast.error('Error al cambiar estado: ' + (res.error?.message || 'Error en el servidor'));
                                 },
                               });
                             }}

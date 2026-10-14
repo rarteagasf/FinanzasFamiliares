@@ -82,6 +82,34 @@ const getInitialCache = () => {
   return initialData;
 };
 
+const saveStoreToCache = (state) => {
+  try {
+    const current = getInitialCache();
+    const activeId = state.selectedMonthId;
+    let updatedExpenses = current.expenses ? [...current.expenses] : [];
+    if (activeId && state.expenses) {
+      updatedExpenses = updatedExpenses.filter(e => e.month_id !== activeId).concat(state.expenses);
+    }
+    let updatedBalances = current.balances ? [...current.balances] : [];
+    if (activeId && state.balances) {
+      updatedBalances = updatedBalances.filter(b => b.month_id !== activeId).concat({ ...state.balances, month_id: activeId });
+    }
+    const newCache = {
+      ...current,
+      months: state.months?.length ? state.months : current.months,
+      entities: state.entities?.length ? state.entities : current.entities,
+      loans: state.loans?.length ? state.loans : current.loans,
+      cards: state.cards?.length ? state.cards : current.cards,
+      reminders: state.reminders?.length ? state.reminders : current.reminders,
+      expenses: updatedExpenses,
+      balances: updatedBalances
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newCache));
+  } catch (e) {
+    console.warn('Error al guardar en caché local:', e);
+  }
+};
+
 const defaultSeed = getInitialCache();
 const defaultActiveMonth = defaultSeed.months?.find(m => m.status === 'open') || defaultSeed.months?.[0];
 const defaultExpenses = defaultSeed.expenses?.filter(e => e.month_id === defaultActiveMonth?.id) || [];
@@ -245,38 +273,71 @@ export const useStore = create((set, get) => ({
   addExpense: async (expense) => {
     const { selectedMonthId } = get();
     const { id: _, created_at: __, loanId: ___, cardId: ____, ...cleanExpense } = expense;
-    const newExpense = { ...cleanExpense, month_id: selectedMonthId };
-    const { data, error } = await supabase.from('expenses').insert(newExpense).select().single();
-    if (!error && data) {
-      set(state => ({ expenses: [...state.expenses, data] }));
+    const tempId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'temp_' + Date.now();
+    const newExpense = { ...cleanExpense, id: tempId, month_id: selectedMonthId, created_at: new Date().toISOString() };
+    
+    set(state => {
+      const nextExpenses = [...state.expenses, newExpense];
+      const nextState = { ...state, expenses: nextExpenses };
+      saveStoreToCache(nextState);
+      return { expenses: nextExpenses };
+    });
+
+    try {
+      const { data, error } = await supabase.from('expenses').insert({ ...cleanExpense, month_id: selectedMonthId }).select().single();
+      if (!error && data) {
+        set(state => {
+          const nextExpenses = state.expenses.map(e => e.id === tempId ? data : e);
+          const nextState = { ...state, expenses: nextExpenses };
+          saveStoreToCache(nextState);
+          return { expenses: nextExpenses };
+        });
+        return { data, error: null };
+      }
+      return { data: newExpense, error, savedLocally: true };
+    } catch (err) {
+      return { data: newExpense, error: err, savedLocally: true };
     }
-    return { data, error };
   },
 
   updateExpense: async (id, updates) => {
-    // Optimistic update
-    const prevExpenses = get().expenses;
-    set(state => ({
-      expenses: state.expenses.map(e => e.id === id ? { ...e, ...updates } : e),
-    }));
-
     const { id: _, created_at: __, month_id: ___, loanId: ____, cardId: _____, ...cleanUpdates } = updates;
-    const { error } = await supabase.from('expenses').update(cleanUpdates).eq('id', id);
-    if (error) {
-      console.error('Error al actualizar gasto en Supabase:', error);
-      set({ expenses: prevExpenses }); // Revert on error
+    
+    // Optimistic update and immediately persist in local cache
+    set(state => {
+      const nextExpenses = state.expenses.map(e => e.id === id ? { ...e, ...cleanUpdates } : e);
+      const nextState = { ...state, expenses: nextExpenses };
+      saveStoreToCache(nextState);
+      return { expenses: nextExpenses };
+    });
+
+    try {
+      const { error } = await supabase.from('expenses').update(cleanUpdates).eq('id', id);
+      if (error) {
+        console.warn('Supabase no pudo guardar el cambio (mantenido localmente):', error.message);
+        return { error, savedLocally: true };
+      }
+      return { success: true };
+    } catch (err) {
+      console.warn('Fallo de red al conectar con Supabase (mantenido localmente):', err);
+      return { error: err, savedLocally: true };
     }
-    return { error };
   },
 
   deleteExpense: async (id) => {
-    const prevExpenses = get().expenses;
-    set(state => ({
-      expenses: state.expenses.filter(e => e.id !== id),
-    }));
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
-    if (error) set({ expenses: prevExpenses });
-    return { error };
+    set(state => {
+      const nextExpenses = state.expenses.filter(e => e.id !== id);
+      const nextState = { ...state, expenses: nextExpenses };
+      saveStoreToCache(nextState);
+      return { expenses: nextExpenses };
+    });
+
+    try {
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      return { error, savedLocally: !!error };
+    } catch (err) {
+      return { error: err, savedLocally: true };
+    }
   },
 
   resetExpensesState: async (entidad) => {
@@ -433,8 +494,17 @@ export const useStore = create((set, get) => ({
     const { balances, selectedMonthId } = get();
     const newBalances = { ...balances, [account]: value };
     
-    set({ balances: newBalances });
-    await supabase.from('balances').update({ [account]: value }).eq('month_id', selectedMonthId);
+    set(state => {
+      const nextState = { ...state, balances: newBalances };
+      saveStoreToCache(nextState);
+      return { balances: newBalances };
+    });
+
+    try {
+      await supabase.from('balances').update({ [account]: value }).eq('month_id', selectedMonthId);
+    } catch (e) {
+      console.warn('Error al actualizar saldos en Supabase (guardado en local):', e);
+    }
   },
 
   closeAndCreateMonth: async (currentMonthId, newMonthName) => {
