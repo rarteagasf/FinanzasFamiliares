@@ -1,13 +1,90 @@
 import { useState } from 'react';
-import { useStore } from '../store/useStore';
-import { ArrowDownCircle, Pencil } from 'lucide-react';
-import { parseNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, getLinkInfo } from '../utils';
+import { useStore, isLoanMatching, isCardMatching } from '../store/useStore';
+import { ArrowDownCircle, Pencil, Check } from 'lucide-react';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo } from '../utils';
 import CurrencyValue from './ui/CurrencyValue';
+import Modal from './ui/Modal';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { balances, expenses, prevPendingExpenses = [], cards, entities, updateBalance, getDynamicCards } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, getDynamicCards } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
+
+  // Editing Expense Modal State
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [formData, setFormData] = useState({ dia: 1, concepto: '', importe: '', entidad: '', estado: 'X', loanId: '', cardId: '' });
+
+  // Confirmation State
+  const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+  const handleMarkAsPaid = (expense) => {
+    const cleanConcept = getLinkInfo(expense.concepto).concept;
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar pago',
+      message: `¿Estás seguro de marcar como "Pagado" el gasto "${cleanConcept}" (${formatCurrency(expense.importe)})?`,
+      onConfirm: async () => {
+        const res = await updateExpense(expense.id, { estado: 'P' });
+        if (res?.savedLocally) {
+          toast.info('Gasto marcado como pagado en el dispositivo');
+        } else if (!res?.error) {
+          toast.success('Gasto marcado como pagado');
+        } else {
+          toast.error('Error al actualizar: ' + (res.error?.message || 'Error en el servidor'));
+        }
+      }
+    });
+  };
+
+  const openExpenseModal = (expense) => {
+    setEditingExpense(expense);
+    const linkInfo = getLinkInfo(expense.concepto);
+    const resolvedLoan = linkInfo.loanId ? loans?.find(l => l.id === linkInfo.loanId) : loans?.find(l => isLoanMatching(linkInfo.concept, null, l));
+    const resolvedCard = linkInfo.cardId ? cards?.find(c => c.id === linkInfo.cardId) : cards?.find(c => isCardMatching(linkInfo.concept, null, c));
+
+    setFormData({
+      ...expense,
+      concepto: linkInfo.concept,
+      importe: formatInputDecimal(expense.importe),
+      loanId: linkInfo.loanId || resolvedLoan?.id || '',
+      cardId: linkInfo.cardId || resolvedCard?.id || ''
+    });
+    setIsExpenseModalOpen(true);
+  };
+
+  const saveExpense = async (e) => {
+    e.preventDefault();
+    if (!editingExpense) return;
+
+    const finalConcept = setLinkInfo(formData.concepto, formData.loanId, formData.cardId);
+    const numericImporte = parseNum(normalizeDecimalInput(formData.importe));
+    const saveData = {
+      dia: formData.dia,
+      concepto: finalConcept,
+      importe: numericImporte,
+      entidad: formData.entidad,
+      estado: formData.estado
+    };
+
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar actualización',
+      message: `¿Estás seguro de guardar los cambios para el gasto "${formData.concepto}"?`,
+      onConfirm: async () => {
+        const res = await updateExpense(editingExpense.id, saveData);
+        if (res?.savedLocally) {
+          toast.info('Gasto actualizado en el dispositivo');
+        } else if (!res?.error) {
+          toast.success('Gasto actualizado');
+        } else {
+          toast.error('Error al actualizar: ' + (res.error?.message || 'Error en el servidor'));
+        }
+        setIsExpenseModalOpen(false);
+      }
+    });
+  };
 
   const dynamicCards = getDynamicCards();
 
@@ -192,6 +269,7 @@ export default function Dashboard() {
                           <th style={{ width: '40px', padding: '0.5rem' }}>Día</th>
                           <th style={{ padding: '0.5rem' }}>Concepto</th>
                           <th style={{ textAlign: 'right', padding: '0.5rem' }}>Importe</th>
+                          <th style={{ textAlign: 'center', width: '70px', padding: '0.5rem' }}>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -204,6 +282,46 @@ export default function Dashboard() {
                             <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>
                               <CurrencyValue value={expense.importe} />
                             </td>
+                            <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                                <button
+                                  className="btn"
+                                  style={{
+                                    padding: '0.25rem',
+                                    background: 'var(--badge-p-bg)',
+                                    color: 'var(--success)',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title="Marcar como Pagado"
+                                  onClick={() => handleMarkAsPaid(expense)}
+                                >
+                                  <Check size={14} />
+                                </button>
+                                <button
+                                  className="btn"
+                                  style={{
+                                    padding: '0.25rem',
+                                    background: 'var(--card-bg, rgba(255,255,255,0.05))',
+                                    color: 'var(--text-muted)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title="Editar gasto"
+                                  onClick={() => openExpenseModal(expense)}
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -215,6 +333,125 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Modal Editar Gasto */}
+      <Modal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} title="Editar Gasto">
+        <form onSubmit={saveExpense}>
+          <div className="form-group">
+            <label>Día</label>
+            <input 
+              type="number" 
+              className="input" 
+              value={formData.dia} 
+              onChange={e => setFormData({ ...formData, dia: parseIntNum(e.target.value) })} 
+              onWheel={e => e.target.blur()} 
+              required 
+              min="1" 
+              max="31" 
+            />
+          </div>
+          <div className="form-group">
+            <label>Concepto</label>
+            <input 
+              type="text" 
+              className="input" 
+              value={formData.concepto} 
+              onChange={e => setFormData({ ...formData, concepto: e.target.value })} 
+              required 
+            />
+          </div>
+          <div className="form-group">
+            <label>Importe (€)</label>
+            <input 
+              type="text" 
+              inputMode="decimal" 
+              className="input" 
+              value={formData.importe} 
+              onChange={e => setFormData({ ...formData, importe: normalizeDecimalInput(e.target.value) })} 
+              onKeyDown={onNumKeyDown} 
+              placeholder="0,00" 
+              required 
+            />
+          </div>
+          <div className="form-group">
+            <label>Entidad</label>
+            <select 
+              className="input" 
+              value={formData.entidad} 
+              onChange={e => setFormData({ ...formData, entidad: e.target.value })} 
+              required
+            >
+              {entities.map(ent => (
+                <option key={ent.id} value={ent.name}>{ent.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Estado</label>
+            <select 
+              className="input" 
+              value={formData.estado} 
+              onChange={e => setFormData({ ...formData, estado: e.target.value })}
+            >
+              <option value="X">Pendiente</option>
+              <option value="P">Pagado</option>
+              <option value="-">No aplica</option>
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label>Vincular a Préstamo</label>
+            <select 
+              className="input" 
+              value={formData.loanId || ''} 
+              onChange={e => setFormData({ ...formData, loanId: e.target.value, cardId: '' })}
+            >
+              <option value="">Ninguno</option>
+              {loans.map(l => (
+                <option key={l.id} value={l.id}>{l.entidad} (Cuota: {l.cuota} €)</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label>Vincular a Tarjeta</label>
+            <select 
+              className="input" 
+              value={formData.cardId || ''} 
+              onChange={e => setFormData({ ...formData, cardId: e.target.value, loanId: '' })}
+            >
+              <option value="">Ninguna</option>
+              {cards.map(c => (
+                <option key={c.id} value={c.id}>{c.tarjeta} (Pendiente: {c.pendiente} €)</option>
+              ))}
+            </select>
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+            Guardar Gasto
+          </button>
+        </form>
+      </Modal>
+
+      {/* Modal Confirmación Genérico */}
+      <Modal 
+        isOpen={confirmState.isOpen} 
+        onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} 
+        title={confirmState.title || 'Confirmar Acción'}
+      >
+        <p style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>{confirmState.message}</p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" onClick={() => {
+            confirmState.onConfirm();
+            setConfirmState(prev => ({ ...prev, isOpen: false }));
+          }}>
+            Confirmar
+          </button>
+        </div>
+      </Modal>
 
     </div>
   );

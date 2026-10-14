@@ -90,6 +90,15 @@ const saveStoreToCache = (state) => {
     if (activeId && state.expenses) {
       updatedExpenses = updatedExpenses.filter(e => e.month_id !== activeId).concat(state.expenses);
     }
+    if (state.prevPendingExpenses && state.prevPendingExpenses.length > 0) {
+      state.prevPendingExpenses.forEach(p => {
+        const idx = updatedExpenses.findIndex(e => e.id === p.id);
+        if (idx !== -1) {
+          const { isFromPreviousMonth, originalMonthName, ...cleanP } = p;
+          updatedExpenses[idx] = cleanP;
+        }
+      });
+    }
     let updatedBalances = current.balances ? [...current.balances] : [];
     if (activeId && state.balances) {
       updatedBalances = updatedBalances.filter(b => b.month_id !== activeId).concat({ ...state.balances, month_id: activeId });
@@ -306,9 +315,10 @@ export const useStore = create((set, get) => ({
     // Optimistic update and immediately persist in local cache
     set(state => {
       const nextExpenses = state.expenses.map(e => e.id === id ? { ...e, ...cleanUpdates } : e);
-      const nextState = { ...state, expenses: nextExpenses };
+      const nextPrev = (state.prevPendingExpenses || []).map(e => e.id === id ? { ...e, ...cleanUpdates } : e);
+      const nextState = { ...state, expenses: nextExpenses, prevPendingExpenses: nextPrev };
       saveStoreToCache(nextState);
-      return { expenses: nextExpenses };
+      return { expenses: nextExpenses, prevPendingExpenses: nextPrev };
     });
 
     try {
