@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate, getLinkInfo } from '../utils';
 import { Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
@@ -7,7 +7,45 @@ import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function PlanningView() {
-  const { loans, cards, addLoan, updateLoan, deleteLoan, addCard, updateCard, deleteCard, getDynamicLoans, getDynamicCards } = useStore();
+  const {
+    loans,
+    cards,
+    addLoan,
+    updateLoan,
+    deleteLoan,
+    addCard,
+    updateCard,
+    deleteCard,
+    getDynamicLoans,
+    getDynamicCards,
+    targetCardId,
+    targetCardTimestamp,
+    clearTargetCard
+  } = useStore();
+
+  const [highlightedCardId, setHighlightedCardId] = useState(null);
+
+  useEffect(() => {
+    if (targetCardId) {
+      setHighlightedCardId(targetCardId);
+      const scrollTimer = setTimeout(() => {
+        const el = document.getElementById(`card-row-${targetCardId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+
+      const clearTimer = setTimeout(() => {
+        setHighlightedCardId(null);
+        clearTargetCard();
+      }, 3000);
+
+      return () => {
+        clearTimeout(scrollTimer);
+        clearTimeout(clearTimer);
+      };
+    }
+  }, [targetCardId, targetCardTimestamp, clearTargetCard]);
 
   // Modals state for NEW items only
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
@@ -316,8 +354,14 @@ export default function PlanningView() {
             <tbody>
               {dynamicCards.map(card => {
                 const isEditing = editingCardId === card.id;
+                const isHighlighted = highlightedCardId === card.id;
                 return (
-                <tr key={card.id} onDoubleClick={() => !isEditing && startCardEdit(card)}>
+                <tr
+                  key={card.id}
+                  id={`card-row-${card.id}`}
+                  className={isHighlighted ? 'row-highlighted' : ''}
+                  onDoubleClick={() => !isEditing && startCardEdit(card)}
+                >
                   {isEditing ? (
                     <>
                       <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineCardForm.tarjeta} onChange={e => setInlineCardForm({...inlineCardForm, tarjeta: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') setEditingCardId(null); }} /></td>

@@ -580,3 +580,36 @@ input[type="number"] {
 .nav-tabs::-webkit-scrollbar {
   display: none;
 }
+
+/* ============================================================
+   CARD NAVIGATION & HIGHLIGHTING
+   ============================================================ */
+.clickable-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+.clickable-row:hover td {
+  background-color: var(--bg-card-hover) !important;
+}
+
+@keyframes rowPulse {
+  0% {
+    background-color: var(--primary-container);
+  }
+  40% {
+    background-color: var(--primary-container);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+tr.row-highlighted td {
+  animation: rowPulse 2.8s ease-out forwards;
+}
+
+tr.row-highlighted td:first-child {
+  box-shadow: inset 4px 0 0 var(--primary);
+}
+

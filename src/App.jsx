@@ -35,8 +35,22 @@ const getNextMonthName = (currentName) => {
 };
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const { months, selectedMonthId, fetchInitialData, fetchMonthData, loading, theme, toggleTheme, exportAllData, importAllData, closeAndCreateMonth, revertMonthClose, reminders } = useStore();
+  const {
+    activeTab,
+    setActiveTab,
+    months,
+    selectedMonthId,
+    fetchInitialData,
+    fetchMonthData,
+    loading,
+    theme,
+    toggleTheme,
+    exportAllData,
+    importAllData,
+    closeAndCreateMonth,
+    revertMonthClose,
+    reminders
+  } = useStore();
   const fileInputRef = useRef(null);
   const [hasNotifiedOverdue, setHasNotifiedOverdue] = useState(false);
 

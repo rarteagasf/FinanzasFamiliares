@@ -156,6 +156,13 @@ export const useStore = create((set, get) => ({
   loading: false,
   isOffline: false,
 
+  activeTab: 'dashboard',
+  setActiveTab: (tab) => set({ activeTab: tab }),
+  targetCardId: null,
+  targetCardTimestamp: 0,
+  navigateToCard: (cardId) => set({ activeTab: 'planning', targetCardId: cardId, targetCardTimestamp: Date.now() }),
+  clearTargetCard: () => set({ targetCardId: null }),
+
   // Load Initial Data
   fetchInitialData: async () => {
     set({ loading: true });

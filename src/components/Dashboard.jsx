@@ -7,7 +7,7 @@ import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, getDynamicCards } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, getDynamicCards, navigateToCard } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -229,7 +229,20 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {dynamicCards.map(card => (
-                <tr key={card.id}>
+                <tr
+                  key={card.id}
+                  onClick={() => navigateToCard(card.id)}
+                  className="clickable-row"
+                  title={`Ver detalle de ${card.tarjeta} en Planificación`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigateToCard(card.id);
+                    }
+                  }}
+                >
                   <td style={{ fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       {card.tarjeta}
