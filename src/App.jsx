@@ -4,11 +4,12 @@ import ExpensesList from './components/ExpensesList';
 import PlanningView from './components/PlanningView';
 import AIChat from './components/AIChat';
 import RemindersView from './components/RemindersView';
-import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Sun, Moon, Download, Upload, RotateCcw, MessageSquare, Bell } from 'lucide-react';
+import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Sun, Moon, Download, Upload, RotateCcw, MessageSquare, Bell, Calculator } from 'lucide-react';
 import { useStore } from './store/useStore';
 import { Toaster, toast } from 'sonner';
 import { globalStyles } from './stitches/globalStyles';
 import Modal from './components/ui/Modal';
+import CalculatorModal from './components/ui/CalculatorModal';
 
 const getNextMonthName = (currentName) => {
   if (!currentName) return '';
@@ -62,6 +63,49 @@ function App() {
   // Revert Month Close States
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
   const [reverting, setReverting] = useState(false);
+
+  // Calculator State & Active Input Tracker
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [activeInputInfo, setActiveInputInfo] = useState(null);
+
+  useEffect(() => {
+    const handleFocusIn = (e) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement &&
+        !target.closest('.calculator-modal-content') &&
+        (target.type === 'number' || target.type === 'text' || target.inputMode === 'decimal')
+      ) {
+        let label = '';
+        const formGroup = target.closest('.form-group');
+        if (formGroup) {
+          label = formGroup.querySelector('label')?.textContent || '';
+        } else {
+          const td = target.closest('td');
+          if (td) {
+            const colIndex = td.cellIndex;
+            const table = td.closest('table');
+            const th = table?.querySelectorAll('thead th')?.[colIndex];
+            if (th) {
+              label = th.textContent || '';
+            }
+          }
+        }
+        if (!label) {
+          label = target.placeholder || target.getAttribute('aria-label') || target.name || 'Campo numérico';
+        }
+
+        setActiveInputInfo({
+          element: target,
+          label: label.replace(/[*:]/g, '').trim(),
+          value: target.value
+        });
+      }
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    return () => window.removeEventListener('focusin', handleFocusIn);
+  }, []);
 
   useEffect(() => {
     globalStyles();
@@ -208,6 +252,14 @@ function App() {
               <Download size={16} />
             </button>
             <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsCalculatorOpen(true)}
+              title="Calculadora"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Calculator size={18} />
+            </button>
             <button
               className="btn btn-secondary theme-toggle"
               onClick={toggleTheme}
@@ -405,6 +457,13 @@ function App() {
           </div>
         </div>
       </Modal>
+
+      {/* Modal Calculadora Básica */}
+      <CalculatorModal
+        isOpen={isCalculatorOpen}
+        onClose={() => setIsCalculatorOpen(false)}
+        activeInputInfo={activeInputInfo}
+      />
     </div>
   );
 }

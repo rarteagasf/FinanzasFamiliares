@@ -61,6 +61,7 @@ export default function PlanningView() {
   
   const [editingCardId, setEditingCardId] = useState(null);
   const [inlineCardForm, setInlineCardForm] = useState({});
+  const [isCuotaManuallyEdited, setIsCuotaManuallyEdited] = useState(false);
 
   // Confirmation State
   const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
@@ -187,14 +188,32 @@ export default function PlanningView() {
     });
   };
 
+  const isCarrefourContado = (name) => {
+    if (!name) return false;
+    const norm = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+    return norm.includes("carrefour") && norm.includes("contado");
+  };
+
+  const cancelCardEdit = () => {
+    setEditingCardId(null);
+    setIsCuotaManuallyEdited(false);
+  };
+
   // --- CARDS INLINE EDITING ---
   const startCardEdit = (card) => {
     setEditingCardId(card.id);
+    setIsCuotaManuallyEdited(false);
+    const pendFormatted = formatInputDecimal(Math.abs(card.pendiente));
+    const isCarrefour = isCarrefourContado(card.tarjeta);
+    const initialCuota = (isCarrefour && (!card.cuota || card.cuota === 0))
+      ? pendFormatted
+      : formatInputDecimal(card.cuota);
+
     setInlineCardForm({
       ...card,
-      pendiente: formatInputDecimal(Math.abs(card.pendiente)),
+      pendiente: pendFormatted,
       credito: formatInputDecimal(card.credito),
-      cuota: formatInputDecimal(card.cuota),
+      cuota: initialCuota,
       disponible: formatInputDecimal(card.disponible),
     });
   };
@@ -203,12 +222,31 @@ export default function PlanningView() {
     let cleaned = normalizeDecimalInput(value);
     let numVal = parseNum(cleaned);
     let newForm = { ...inlineCardForm, [field]: cleaned };
+
+    let cuotaEdited = isCuotaManuallyEdited;
+    if (field === 'cuota') {
+      cuotaEdited = true;
+      setIsCuotaManuallyEdited(true);
+    }
+
     let creditoVal = field === 'credito' ? numVal : parseNum(inlineCardForm.credito);
     let pendienteVal = field === 'pendiente' ? numVal : parseNum(inlineCardForm.pendiente);
     let disponibleVal = field === 'disponible' ? numVal : parseNum(inlineCardForm.disponible);
-    if (field === 'credito') newForm.disponible = formatInputDecimal(numVal - pendienteVal);
-    else if (field === 'pendiente') newForm.disponible = formatInputDecimal(creditoVal - numVal);
-    else if (field === 'disponible') newForm.pendiente = formatInputDecimal(creditoVal - numVal);
+
+    if (field === 'credito') {
+      newForm.disponible = formatInputDecimal(numVal - pendienteVal);
+    } else if (field === 'pendiente') {
+      newForm.disponible = formatInputDecimal(creditoVal - numVal);
+      if (isCarrefourContado(inlineCardForm.tarjeta) && !cuotaEdited) {
+        newForm.cuota = cleaned;
+      }
+    } else if (field === 'disponible') {
+      const calcPendiente = creditoVal - numVal;
+      newForm.pendiente = formatInputDecimal(calcPendiente);
+      if (isCarrefourContado(inlineCardForm.tarjeta) && !cuotaEdited) {
+        newForm.cuota = formatInputDecimal(calcPendiente);
+      }
+    }
     setInlineCardForm(newForm);
   };
 
@@ -230,8 +268,12 @@ export default function PlanningView() {
       disponible: disponibleVal,
     };
     const { error } = await updateCard(editingCardId, saveForm);
-    if (!error) { toast.success('Guardado'); setEditingCardId(null); }
-    else toast.error('Error al guardar');
+    if (!error) {
+      toast.success('Guardado');
+      cancelCardEdit();
+    } else {
+      toast.error('Error al guardar');
+    }
   };
 
   return (
@@ -364,15 +406,15 @@ export default function PlanningView() {
                 >
                   {isEditing ? (
                     <>
-                      <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineCardForm.tarjeta} onChange={e => setInlineCardForm({...inlineCardForm, tarjeta: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') setEditingCardId(null); }} /></td>
-                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.credito} onChange={e => handleInlineCardChange('credito', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') setEditingCardId(null); }} /></td>
-                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.cuota} onChange={e => handleInlineCardChange('cuota', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') setEditingCardId(null); }} /></td>
-                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--danger)' }} value={inlineCardForm.pendiente} onChange={e => handleInlineCardChange('pendiente', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') setEditingCardId(null); }} /></td>
-                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--success)' }} value={inlineCardForm.disponible} onChange={e => handleInlineCardChange('disponible', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') setEditingCardId(null); }} /></td>
+                      <td><input type="text" className="input" style={{ width: '100%', padding: '0.25rem' }} value={inlineCardForm.tarjeta} onChange={e => setInlineCardForm({...inlineCardForm, tarjeta: e.target.value})} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') cancelCardEdit(); }} /></td>
+                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.credito} onChange={e => handleInlineCardChange('credito', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') cancelCardEdit(); }} /></td>
+                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem' }} value={inlineCardForm.cuota} onChange={e => handleInlineCardChange('cuota', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') cancelCardEdit(); }} /></td>
+                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--danger)' }} value={inlineCardForm.pendiente} onChange={e => handleInlineCardChange('pendiente', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') cancelCardEdit(); }} /></td>
+                      <td><input type="text" inputMode="decimal" className="input" style={{ width: '100px', padding: '0.25rem', color: 'var(--success)' }} value={inlineCardForm.disponible} onChange={e => handleInlineCardChange('disponible', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveInlineCard(); if (e.key === 'Escape') cancelCardEdit(); }} /></td>
                       <td className="td-actions">
                         <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                           <button className="btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={saveInlineCard}><Check size={16} color="var(--success)" /></button>
-                          <button className="btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={() => setEditingCardId(null)}><XIcon size={16} color="var(--danger)" /></button>
+                          <button className="btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={cancelCardEdit}><XIcon size={16} color="var(--danger)" /></button>
                         </div>
                       </td>
                     </>
