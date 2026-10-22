@@ -4,7 +4,8 @@ import ExpensesList from './components/ExpensesList';
 import PlanningView from './components/PlanningView';
 import AIChat from './components/AIChat';
 import RemindersView from './components/RemindersView';
-import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Sun, Moon, Download, Upload, RotateCcw, MessageSquare, Bell, Calculator } from 'lucide-react';
+import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Download, Upload, RotateCcw, MessageSquare, Bell, Calculator, PlusCircle } from 'lucide-react';
+import { normalizeDecimalInput, parseNum } from './utils';
 import { useStore } from './store/useStore';
 import { Toaster, toast } from 'sonner';
 import { globalStyles } from './stitches/globalStyles';
@@ -44,13 +45,13 @@ function App() {
     fetchInitialData,
     fetchMonthData,
     loading,
-    theme,
-    toggleTheme,
     exportAllData,
     importAllData,
     closeAndCreateMonth,
     revertMonthClose,
-    reminders
+    reminders,
+    entities,
+    addExpense
   } = useStore();
   const fileInputRef = useRef(null);
   const [hasNotifiedOverdue, setHasNotifiedOverdue] = useState(false);
@@ -67,6 +68,16 @@ function App() {
   // Calculator State & Active Input Tracker
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [activeInputInfo, setActiveInputInfo] = useState(null);
+
+  // Quick Expense Modal States
+  const [isQuickExpenseOpen, setIsQuickExpenseOpen] = useState(false);
+  const [quickExpenseData, setQuickExpenseData] = useState({
+    dia: new Date().getDate(),
+    concepto: '',
+    importe: '',
+    entidad: 'CAIXABANK',
+    estado: 'X'
+  });
 
   useEffect(() => {
     const handleFocusIn = (e) => {
@@ -148,13 +159,46 @@ function App() {
 
   const pendingRemindersCount = reminders ? reminders.filter(r => !r.completado).length : 0;
 
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark-theme');
-    } else {
-      document.documentElement.classList.remove('dark-theme');
+  const handleOpenQuickExpense = () => {
+    setQuickExpenseData({
+      dia: new Date().getDate(),
+      concepto: '',
+      importe: '',
+      entidad: entities?.[0]?.name || 'CAIXABANK',
+      estado: 'X'
+    });
+    setIsQuickExpenseOpen(true);
+  };
+
+  const handleSaveQuickExpense = async (e) => {
+    e.preventDefault();
+    if (!quickExpenseData.concepto.trim()) {
+      toast.error('El concepto es obligatorio');
+      return;
     }
-  }, [theme]);
+    const num = parseNum(normalizeDecimalInput(quickExpenseData.importe));
+    if (isNaN(num) || num <= 0) {
+      toast.error('Introduce un importe válido');
+      return;
+    }
+
+    const res = await addExpense({
+      dia: Number(quickExpenseData.dia) || new Date().getDate(),
+      concepto: quickExpenseData.concepto.trim(),
+      importe: num,
+      entidad: quickExpenseData.entidad,
+      estado: quickExpenseData.estado
+    });
+
+    if (res?.savedLocally) {
+      toast.info('Gasto registrado en el dispositivo');
+    } else if (!res?.error) {
+      toast.success('Gasto registrado correctamente');
+    } else {
+      toast.error('Error al registrar gasto: ' + (res.error?.message || 'Error en el servidor'));
+    }
+    setIsQuickExpenseOpen(false);
+  };
 
   const handleMonthChange = (e) => {
     fetchMonthData(e.target.value);
@@ -238,7 +282,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <Toaster position="top-right" richColors theme={theme} />
+      <Toaster position="top-right" richColors />
       <header className="app-header">
         <div className="header-top">
           <h1 className="app-title">
@@ -259,13 +303,6 @@ function App() {
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <Calculator size={18} />
-            </button>
-            <button
-              className="btn btn-secondary theme-toggle"
-              onClick={toggleTheme}
-              title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
         </div>
@@ -464,6 +501,105 @@ function App() {
         onClose={() => setIsCalculatorOpen(false)}
         activeInputInfo={activeInputInfo}
       />
+
+      {/* Botón Flotante Permanente de Registro Diario (FAB) */}
+      <button
+        type="button"
+        className="fab-quick-expense"
+        onClick={handleOpenQuickExpense}
+        title="Registrar nuevo gasto"
+        aria-label="Registrar ticket o nuevo gasto"
+      >
+        <PlusCircle size={20} />
+        <span>Registrar Gasto</span>
+      </button>
+
+      {/* Modal Registro Rápido de Gasto */}
+      <Modal
+        isOpen={isQuickExpenseOpen}
+        onClose={() => setIsQuickExpenseOpen(false)}
+        title="Registrar Nuevo Gasto"
+      >
+        <form onSubmit={handleSaveQuickExpense}>
+          <div className="form-group">
+            <label>Día del mes</label>
+            <input
+              type="number"
+              className="input"
+              value={quickExpenseData.dia}
+              onChange={e => setQuickExpenseData({ ...quickExpenseData, dia: parseInt(e.target.value, 10) || 1 })}
+              onWheel={e => e.target.blur()}
+              required
+              min="1"
+              max="31"
+            />
+          </div>
+          <div className="form-group">
+            <label>Concepto</label>
+            <input
+              type="text"
+              className="input"
+              value={quickExpenseData.concepto}
+              onChange={e => setQuickExpenseData({ ...quickExpenseData, concepto: e.target.value })}
+              placeholder="Ej: Compra Mercadona, Farmacia..."
+              required
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label>Importe (€)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="input"
+              value={quickExpenseData.importe}
+              onChange={e => setQuickExpenseData({ ...quickExpenseData, importe: normalizeDecimalInput(e.target.value) })}
+              placeholder="0,00"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Entidad</label>
+            <select
+              className="input"
+              value={quickExpenseData.entidad}
+              onChange={e => setQuickExpenseData({ ...quickExpenseData, entidad: e.target.value })}
+            >
+              {entities.map(ent => (
+                <option key={ent.id} value={ent.name}>{ent.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Estado</label>
+            <select
+              className="input"
+              value={quickExpenseData.estado}
+              onChange={e => setQuickExpenseData({ ...quickExpenseData, estado: e.target.value })}
+            >
+              <option value="X">Pendiente (No pagado)</option>
+              <option value="P">Pagado</option>
+              <option value="-">No aplica</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setIsQuickExpenseOpen(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ backgroundColor: 'var(--fab-bg)', borderColor: 'var(--fab-bg)', color: '#ffffff' }}
+            >
+              Guardar Gasto
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

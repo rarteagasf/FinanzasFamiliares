@@ -141,7 +141,6 @@ if (initialCurIdx > 0) {
 }
 
 export const useStore = create((set, get) => ({
-  theme: localStorage.getItem('theme') || 'dark',
   months: defaultSeed.months || [],
   selectedMonthId: defaultActiveMonth?.id || null,
   
@@ -213,13 +212,6 @@ export const useStore = create((set, get) => ({
     } finally {
       set({ loading: false });
     }
-  },
-
-  // Theme
-  toggleTheme: () => {
-    const newTheme = get().theme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('theme', newTheme);
-    set({ theme: newTheme });
   },
 
   // Fetch Data for specific month

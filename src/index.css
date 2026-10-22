@@ -1,103 +1,92 @@
 /* ============================================================
-   LIGHT MODE (default)
+   ESTUDIO CONFORTABLE (Warm Sand & Slate Blue)
+   Tema Intermedio / Ambivalente - Material Design 3 & Apple HIG
    ============================================================ */
 :root {
-  --bg-main: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f1f5f9;
+  /* Lienzo y Superficies (Neutros Medios Tonal Scale) */
+  --bg-main: #CBBFB4;              /* Arena tostada media (Lienzo principal, L* ≈ 77.8) */
+  --bg-card: #DFD6CD;              /* Lino claro (Tarjetas y Contenedores, L* ≈ 85.5) */
+  --bg-card-hover: #E8E1DA;        /* Hover sutil sobre tarjetas */
+  --bg-input: #D4C9BF;             /* Superficie de inputs con contraste con tarjetas */
 
-  --text-main: #0f172a;
-  --text-muted: #64748b;
+  /* Tipografía y Textos (Ratio AAA > 8:1 y AA > 4.8:1) */
+  --text-main: #2C2621;            /* Café tabaco profundo - Ratio > 8.1:1 */
+  --text-muted: #5C5248;           /* Café medio desaturado - Ratio > 4.8:1 */
+  --text-inverse: #FFFFFF;
 
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-container: #dbeafe;
-  --on-primary-container: #1e3a5f;
+  /* Acción Primaria (Azul Pizarra Apagado) */
+  --primary: #4F6367;              /* Acción principal */
+  --primary-hover: #3E5054;
+  --primary-active: #334346;
+  --primary-container: #D0D9DA;     /* Contenedor tonal claro */
+  --on-primary: #FFFFFF;           /* Ratio 6.23:1 (AA) */
+  --on-primary-container: #1C2D30; /* Ratio > 9:1 */
+  --primary-text: #37484B;         /* Tonal variant para texto/enlaces primarios */
 
-  --secondary: #14b8a6;
-  --secondary-container: #ccfbf1;
+  /* Ahorros / Acento Dorado Ocre */
+  --accent-gold: #BFA87A;          /* Dorado ocre desaturado */
+  --accent-gold-hover: #B09869;
+  --on-accent-gold: #2C2621;       /* Ratio 6.34:1 */
+  --accent-gold-text: #6D5520;     /* Ratio > 5:1 */
+  --accent-gold-container: rgba(191, 168, 122, 0.22);
 
-  --tertiary: #8b5cf6;
-  --tertiary-container: #ede9fe;
+  /* Botón de Registro Diario / Acento Cobre (FAB) */
+  --fab-bg: #BA5E42;               /* Cobre cálido terracota accesible */
+  --fab-hover: #A54F35;
+  --fab-text: #FFFFFF;             /* Ratio 5.33:1 (AA) */
 
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --info: #0ea5e9;
+  /* Colores Secundarios y Terciarios */
+  --secondary: #5F7477;
+  --secondary-container: #D5DFE0;
+  --tertiary: #7D6B58;
+  --tertiary-container: #DDD5CB;
 
-  --border: #e2e8f0;
-  --outline: #cbd5e1;
+  /* Gastos Pendientes / Peligro / Alertas (Terracota cálido desaturado) */
+  --danger: #B8533C;               /* Terracota cálido profundo (Ratio > 4.5:1) */
+  --danger-hover: #A0442F;
+  --badge-x-bg: rgba(184, 83, 60, 0.16);
+  --badge-x-border: rgba(184, 83, 60, 0.35);
+  --badge-x-text: #8C321E;         /* Ratio > 5.2:1 */
 
-  --caixabank: #0ea5e9;
-  --ing: #f97316;
+  /* Pagados / Ahorros Cumplidos (Salvia cálido) */
+  --success: #4B6F46;              /* Salvia bosque profundo */
+  --success-hover: #3E5C39;
+  --badge-p-bg: rgba(75, 111, 70, 0.16);
+  --badge-p-border: rgba(75, 111, 70, 0.35);
+  --badge-p-text: #2D4829;         /* Ratio > 5.8:1 */
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+  /* Advertencias / Warning */
+  --warning: #9E6E22;              /* Ámbar tostado */
+  --badge-warning-bg: rgba(158, 110, 34, 0.16);
+  --badge-warning-text: #68460D;   /* Ratio > 5.5:1 */
+  --info: #3D5961;                 /* Azul petróleo pizarra */
 
-  --overlay: rgba(15, 23, 42, 0.5);
-  --table-total-bg: rgba(241, 245, 249, 0.9);
+  --badge-none-bg: rgba(92, 82, 72, 0.14);
 
-  /* State badge backgrounds */
-  --badge-p-bg: rgba(16, 185, 129, 0.2);
-  --badge-x-bg: rgba(239, 68, 68, 0.2);
-  --badge-none-bg: rgba(148, 163, 184, 0.2);
+  /* Entidades Bancarias Armonizadas */
+  --caixabank: #364E55;            /* Azul pizarra petróleo (Ratio 5.2:1) */
+  --caixabank-bg: rgba(54, 78, 85, 0.12);
+  --ing: #B35B37;                  /* Caldero terracota cálido (Ratio 4.8:1) */
+  --ing-bg: rgba(179, 91, 55, 0.14);
 
-  /* Danger button */
-  --btn-danger-bg: rgba(239, 68, 68, 0.1);
-  --btn-danger-border: rgba(239, 68, 68, 0.2);
-  --btn-danger-hover-bg: rgba(239, 68, 68, 0.2);
-}
+  /* Bordes, Contornos y Separadores (Apple HIG / M3 Outline) */
+  --border: #B7A89B;               /* Borde accesible para delimitación de tarjeta (3:1) */
+  --border-subtle: #CFBEB1;        /* Separador interno tenue */
+  --outline: #9F8E80;              /* Foco y contorno interactivo */
 
-/* ============================================================
-   DARK MODE
-   ============================================================ */
-.dark-theme {
-  --bg-main: #0f172a;
-  --bg-card: #1e293b;
-  --bg-card-hover: #334155;
+  /* Botones de Acción Destructiva */
+  --btn-danger-bg: rgba(184, 83, 60, 0.12);
+  --btn-danger-border: rgba(184, 83, 60, 0.28);
+  --btn-danger-hover-bg: rgba(184, 83, 60, 0.22);
 
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  /* Sombras Tonal-Elevadas Cálidas (M3 Elevation en neutros) */
+  --shadow-sm: 0 1px 3px rgba(44, 38, 33, 0.08), 0 1px 2px rgba(44, 38, 33, 0.05);
+  --shadow-md: 0 4px 8px -1px rgba(44, 38, 33, 0.12), 0 2px 4px -1px rgba(44, 38, 33, 0.07);
+  --shadow-lg: 0 10px 20px -3px rgba(44, 38, 33, 0.15), 0 4px 8px -2px rgba(44, 38, 33, 0.09);
+  --shadow-xl: 0 20px 28px -5px rgba(44, 38, 33, 0.18), 0 10px 12px -5px rgba(44, 38, 33, 0.08);
 
-  --primary: #60a5fa;
-  --primary-hover: #3b82f6;
-  --primary-container: #1e3a5f;
-  --on-primary-container: #dbeafe;
-
-  --secondary: #2dd4bf;
-  --secondary-container: #134e4a;
-
-  --tertiary: #a78bfa;
-  --tertiary-container: #3b0764;
-
-  --success: #34d399;
-  --danger: #f87171;
-  --warning: #fbbf24;
-  --info: #38bdf8;
-
-  --border: #334155;
-  --outline: #475569;
-
-  --caixabank: #38bdf8;
-  --ing: #fb923c;
-
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -2px rgba(0,0,0,0.2);
-  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.4), 0 10px 10px -5px rgba(0,0,0,0.2);
-
-  --overlay: rgba(15, 23, 42, 0.8);
-  --table-total-bg: rgba(30, 41, 59, 0.9);
-
-  --badge-p-bg: rgba(16, 185, 129, 0.15);
-  --badge-x-bg: rgba(239, 68, 68, 0.15);
-  --badge-none-bg: rgba(148, 163, 184, 0.15);
-
-  --btn-danger-bg: rgba(248, 113, 113, 0.1);
-  --btn-danger-border: rgba(248, 113, 113, 0.2);
-  --btn-danger-hover-bg: rgba(248, 113, 113, 0.2);
+  --overlay: rgba(44, 38, 33, 0.6);
+  --table-total-bg: rgba(223, 214, 205, 0.95);
 }
 
 @keyframes fadeIn {
@@ -612,4 +601,50 @@ tr.row-highlighted td {
 tr.row-highlighted td:first-child {
   box-shadow: inset 4px 0 0 var(--primary);
 }
+
+/* ============================================================
+   FAB - BOTÓN DE REGISTRO DIARIO (ACCESO RÁPIDO)
+   ============================================================ */
+.fab-quick-expense {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background-color: var(--fab-bg);
+  color: var(--fab-text);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  padding: 0.85rem 1.4rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 20px rgba(44, 38, 33, 0.28), 0 2px 6px rgba(44, 38, 33, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.fab-quick-expense:hover {
+  background-color: var(--fab-hover);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(44, 38, 33, 0.35), 0 4px 10px rgba(44, 38, 33, 0.2);
+}
+
+.fab-quick-expense:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@media (max-width: 640px) {
+  .fab-quick-expense {
+    bottom: 1.25rem;
+    right: 1.25rem;
+    padding: 0.75rem 1.15rem;
+    font-size: 0.875rem;
+  }
+}
+
 

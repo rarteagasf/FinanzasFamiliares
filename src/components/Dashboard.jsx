@@ -186,11 +186,11 @@ export default function Dashboard() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--info)' }}>CaixaBank Pendiente</span>
+              <span style={{ color: 'var(--caixabank)' }}>CaixaBank Pendiente</span>
               <CurrencyValue value={totalPendienteCaixa} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--warning)' }}>ING Pendiente</span>
+              <span style={{ color: 'var(--ing)' }}>ING Pendiente</span>
               <CurrencyValue value={totalPendienteING} />
             </div>
           </div>

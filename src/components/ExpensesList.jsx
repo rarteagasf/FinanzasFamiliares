@@ -65,6 +65,10 @@ export default function ExpensesList() {
   const displayedExpenses = getSortedAndFiltered();
 
   const getEntityColor = (name) => {
+    if (!name) return 'var(--text-muted)';
+    const norm = name.trim().toUpperCase();
+    if (norm.includes('CAIXA')) return 'var(--caixabank)';
+    if (norm.includes('ING')) return 'var(--ing)';
     const ent = entities.find(e => e.name === name);
     return ent ? ent.color : 'var(--text-muted)';
   };
@@ -428,12 +432,12 @@ export default function ExpensesList() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <span>{linkInfo.concept}</span>
                             {linkedLoan && (
-                              <span style={{ fontSize: '0.75rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '0.15rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }} title={`Vinculado a Préstamo: ${linkedLoan.entidad}`}>
+                              <span style={{ fontSize: '0.75rem', background: 'rgba(79, 99, 103, 0.15)', color: 'var(--primary-text)', padding: '0.15rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(79, 99, 103, 0.35)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }} title={`Vinculado a Préstamo: ${linkedLoan.entidad}`}>
                                 🏦 {linkedLoan.entidad}
                               </span>
                             )}
                             {linkedCard && (
-                              <span style={{ fontSize: '0.75rem', background: 'rgba(236, 72, 153, 0.15)', color: '#f472b6', padding: '0.15rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(236, 72, 153, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }} title={`Vinculado a Tarjeta: ${linkedCard.tarjeta}`}>
+                              <span style={{ fontSize: '0.75rem', background: 'rgba(186, 94, 66, 0.15)', color: 'var(--fab-bg)', padding: '0.15rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(186, 94, 66, 0.35)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }} title={`Vinculado a Tarjeta: ${linkedCard.tarjeta}`}>
                                 💳 {linkedCard.tarjeta}
                               </span>
                             )}

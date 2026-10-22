@@ -7,7 +7,7 @@ export const globalStyles = globalCss({
     boxSizing: 'border-box',
   },
   body: {
-    fontFamily: '"Outfit", "Inter", system-ui, sans-serif',
+    fontFamily: '"Plus Jakarta Sans", "Outfit", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     backgroundColor: 'var(--bg-main)',
     color: 'var(--text-main)',
     lineHeight: 1.5,
@@ -16,7 +16,7 @@ export const globalStyles = globalCss({
     transition: 'background-color 0.3s ease, color 0.3s ease',
   },
   'input, select, textarea, button': {
-    fontFamily: '"Outfit", "Inter", system-ui, sans-serif',
+    fontFamily: '"Plus Jakarta Sans", "Outfit", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   'input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button': {
     WebkitAppearance: 'none',
@@ -29,6 +29,9 @@ export const globalStyles = globalCss({
   '::selection': {
     backgroundColor: 'var(--primary)',
     color: 'white',
+  },
+  'td, .currency-value, .stat-value': {
+    fontVariantNumeric: 'tabular-nums',
   },
   '.app-header': {
     marginBottom: '2rem',
@@ -57,9 +60,10 @@ export const globalStyles = globalCss({
   '.app-title': {
     fontSize: 'clamp(1.25rem, 4vw, 2rem)',
     fontWeight: 700,
-    background: 'linear-gradient(to right, #60a5fa, #a78bfa)',
+    background: 'linear-gradient(135deg, #2C2621 0%, #4F6367 100%)',
     WebkitBackgroundClip: 'text',
-    color: 'transparent',
+    WebkitTextFillColor: 'transparent',
+    color: 'var(--text-main)',
     lineHeight: 1.2,
   },
   '.theme-toggle': {
@@ -371,24 +375,28 @@ export const globalStyles = globalCss({
     },
   },
   '.badge': {
-    padding: '0.25rem 0.5rem',
+    padding: '0.25rem 0.55rem',
     borderRadius: '9999px',
     fontSize: '0.75rem',
     fontWeight: 600,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    border: '1px solid transparent',
   },
   '.badge-p': {
     background: 'var(--badge-p-bg)',
-    color: 'var(--success)',
+    borderColor: 'var(--badge-p-border)',
+    color: 'var(--badge-p-text)',
   },
   '.badge-x': {
     background: 'var(--badge-x-bg)',
-    color: 'var(--danger)',
+    borderColor: 'var(--badge-x-border)',
+    color: 'var(--badge-x-text)',
   },
   '.badge-none': {
     background: 'var(--badge-none-bg)',
+    borderColor: 'var(--border-subtle)',
     color: 'var(--text-muted)',
   },
   '.stat-value.positive': {
