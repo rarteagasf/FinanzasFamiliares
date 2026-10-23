@@ -336,9 +336,10 @@ export const useStore = create((set, get) => ({
   deleteExpense: async (id) => {
     set(state => {
       const nextExpenses = state.expenses.filter(e => e.id !== id);
-      const nextState = { ...state, expenses: nextExpenses };
+      const nextPrev = (state.prevPendingExpenses || []).filter(e => e.id !== id);
+      const nextState = { ...state, expenses: nextExpenses, prevPendingExpenses: nextPrev };
       saveStoreToCache(nextState);
-      return { expenses: nextExpenses };
+      return { expenses: nextExpenses, prevPendingExpenses: nextPrev };
     });
 
     try {

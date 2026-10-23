@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useStore, isLoanMatching, isCardMatching } from '../store/useStore';
-import { ArrowDownCircle, Pencil, Check } from 'lucide-react';
+import { ArrowDownCircle, Pencil, Check, Trash2 } from 'lucide-react';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo } from '../utils';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, getDynamicCards, navigateToCard } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, deleteExpense, getDynamicCards, navigateToCard } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -33,6 +33,25 @@ export default function Dashboard() {
           toast.success('Gasto marcado como pagado');
         } else {
           toast.error('Error al actualizar: ' + (res.error?.message || 'Error en el servidor'));
+        }
+      }
+    });
+  };
+
+  const handleDeleteExpense = (expense) => {
+    const cleanConcept = getLinkInfo(expense.concepto).concept;
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirmar eliminación',
+      message: `¿Estás seguro de eliminar el gasto "${cleanConcept}" (${formatCurrency(expense.importe)})?`,
+      onConfirm: async () => {
+        const res = await deleteExpense(expense.id);
+        if (res?.savedLocally) {
+          toast.info('Gasto eliminado en el dispositivo');
+        } else if (!res?.error) {
+          toast.success('Gasto eliminado');
+        } else {
+          toast.error('Error al eliminar: ' + (res.error?.message || 'Error en el servidor'));
         }
       }
     });
@@ -131,7 +150,7 @@ export default function Dashboard() {
     groupedPendientes[exp.entidad].push(exp);
   });
 
-  const activeGroups = Object.entries(groupedPendientes).filter(([_, list]) => list.length > 0);
+  const activeGroups = Object.entries(groupedPendientes).filter(([, list]) => list.length > 0);
 
   return (
     <div className="dashboard">
@@ -282,7 +301,7 @@ export default function Dashboard() {
                           <th style={{ width: '40px', padding: '0.5rem' }}>Día</th>
                           <th style={{ padding: '0.5rem' }}>Concepto</th>
                           <th style={{ textAlign: 'right', padding: '0.5rem' }}>Importe</th>
-                          <th style={{ textAlign: 'center', width: '70px', padding: '0.5rem' }}>Acciones</th>
+                          <th style={{ textAlign: 'center', width: '100px', padding: '0.5rem' }}>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -332,6 +351,24 @@ export default function Dashboard() {
                                   onClick={() => openExpenseModal(expense)}
                                 >
                                   <Pencil size={14} />
+                                </button>
+                                <button
+                                  className="btn"
+                                  style={{
+                                    padding: '0.25rem',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    color: 'var(--danger)',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title="Eliminar gasto"
+                                  onClick={() => handleDeleteExpense(expense)}
+                                >
+                                  <Trash2 size={14} />
                                 </button>
                               </div>
                             </td>

@@ -137,7 +137,55 @@ function App() {
       }
     };
     window.addEventListener('wheel', handleWheel, { passive: true });
-    return () => window.removeEventListener('wheel', handleWheel);
+
+    let focusedElement = null;
+
+    const handleFocusIn = (e) => {
+      const el = e.target;
+      if (
+        (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) &&
+        !['checkbox', 'radio', 'file', 'button', 'submit', 'reset', 'color', 'range'].includes(el.type) &&
+        !el.readOnly &&
+        !el.disabled
+      ) {
+        focusedElement = el;
+        requestAnimationFrame(() => {
+          if (document.activeElement === el) {
+            try {
+              el.select();
+            } catch {
+              // Ignore unsupported input types or selection errors
+            }
+          }
+        });
+      }
+    };
+
+    const handleMouseUp = (e) => {
+      if (focusedElement && e.target === focusedElement) {
+        try {
+          focusedElement.select();
+        } catch {
+          // Ignore unsupported input types or selection errors
+        }
+        focusedElement = null;
+      }
+    };
+
+    const handleMouseDown = () => {
+      focusedElement = null;
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousedown', handleMouseDown);
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousedown', handleMouseDown);
+    };
   }, []);
 
   useEffect(() => {
