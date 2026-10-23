@@ -16,3 +16,4 @@
   1. Verificar `git status` y `git diff`.
   2. Compilar con `npm run build` para asegurar cero errores de build.
   3. Ejecutar `git add`, generar commit con mensaje semántico convencional (`type(scope): description`) y hacer `git push origin main`.
+- **Pre-autorización de Rama Principal (`main`)**: En este proyecto, la rama principal `origin/main` está permanentemente confirmada y pre-autorizada para commits y push directos automáticos. No se debe solicitar confirmación interactiva adicional al usuario si `npm run build` compila con 0 errores y el árbol de trabajo está verificado. Se mantiene la prohibición estricta de `git push --force`.
