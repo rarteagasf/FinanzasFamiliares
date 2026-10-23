@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useStore, isLoanMatching, isCardMatching } from '../store/useStore';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo } from '../utils';
-import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon } from 'lucide-react';
+import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Plus, Edit2, Trash2, Copy, Settings, Check, X as XIcon, Calculator } from 'lucide-react';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function ExpensesList() {
-  const { expenses, entities, balances, loans, cards, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity } = useStore();
+  const { expenses, entities, balances, loans, cards, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity, openCalculator } = useStore();
   
   const [sortBy, setSortBy] = useState('dia'); // 'dia' | 'entidad'
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' | 'desc'
@@ -536,16 +536,32 @@ export default function ExpensesList() {
           <div className="form-group"><label>Concepto</label><input type="text" className="input" value={formData.concepto} onChange={e => setFormData({...formData, concepto: e.target.value})} required /></div>
           <div className="form-group">
             <label>Importe (€)</label>
-            <input 
-              type="text" 
-              inputMode="decimal" 
-              className="input" 
-              value={formData.importe} 
-              onChange={e => setFormData({...formData, importe: normalizeDecimalInput(e.target.value)})} 
-              onKeyDown={onNumKeyDown}
-              placeholder="0,00"
-              required 
-            />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input 
+                type="text" 
+                inputMode="decimal" 
+                className="input" 
+                value={formData.importe} 
+                onChange={e => setFormData({...formData, importe: normalizeDecimalInput(e.target.value)})} 
+                onKeyDown={onNumKeyDown}
+                placeholder="0,00"
+                required 
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={(e) => {
+                  const input = e.currentTarget.previousElementSibling;
+                  openCalculator(input);
+                }}
+                title="Calcular importe"
+                aria-label="Calcular importe"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.75rem', flexShrink: 0 }}
+              >
+                <Calculator size={18} />
+              </button>
+            </div>
           </div>
           <div className="form-group"><label>Entidad</label><select className="input" value={formData.entidad} onChange={e => setFormData({...formData, entidad: e.target.value})} required>{entities.map(ent => <option key={ent.id} value={ent.name}>{ent.name}</option>)}</select></div>
           <div className="form-group"><label>Estado Inicial</label><select className="input" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})}><option value="X">Pendiente</option><option value="P">Pagado</option><option value="-">No aplica</option></select></div>

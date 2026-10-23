@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useStore, isLoanMatching, isCardMatching } from '../store/useStore';
-import { ArrowDownCircle, Pencil, Check, Trash2 } from 'lucide-react';
+import { ArrowDownCircle, Pencil, Check, Trash2, Calculator } from 'lucide-react';
 import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo } from '../utils';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, deleteExpense, getDynamicCards, navigateToCard } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, deleteExpense, getDynamicCards, navigateToCard, openCalculator } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -412,16 +412,32 @@ export default function Dashboard() {
           </div>
           <div className="form-group">
             <label>Importe (€)</label>
-            <input 
-              type="text" 
-              inputMode="decimal" 
-              className="input" 
-              value={formData.importe} 
-              onChange={e => setFormData({ ...formData, importe: normalizeDecimalInput(e.target.value) })} 
-              onKeyDown={onNumKeyDown} 
-              placeholder="0,00" 
-              required 
-            />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input 
+                type="text" 
+                inputMode="decimal" 
+                className="input" 
+                value={formData.importe} 
+                onChange={e => setFormData({ ...formData, importe: normalizeDecimalInput(e.target.value) })} 
+                onKeyDown={onNumKeyDown} 
+                placeholder="0,00" 
+                required 
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={(e) => {
+                  const input = e.currentTarget.previousElementSibling;
+                  openCalculator(input);
+                }}
+                title="Calcular importe"
+                aria-label="Calcular importe"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.75rem', flexShrink: 0 }}
+              >
+                <Calculator size={18} />
+              </button>
+            </div>
           </div>
           <div className="form-group">
             <label>Entidad</label>

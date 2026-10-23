@@ -5,7 +5,7 @@ import PlanningView from './components/PlanningView';
 import AIChat from './components/AIChat';
 import RemindersView from './components/RemindersView';
 import { Wallet, PieChart, CalendarDays, CalendarPlus, History, Download, Upload, RotateCcw, MessageSquare, Bell, Calculator, PlusCircle } from 'lucide-react';
-import { normalizeDecimalInput, parseNum } from './utils';
+import { normalizeDecimalInput, parseNum, getInputInfo } from './utils';
 import { useStore } from './store/useStore';
 import { Toaster, toast } from 'sonner';
 import { globalStyles } from './stitches/globalStyles';
@@ -51,7 +51,12 @@ function App() {
     revertMonthClose,
     reminders,
     entities,
-    addExpense
+    addExpense,
+    isCalculatorOpen,
+    activeInputInfo,
+    openCalculator,
+    closeCalculator,
+    setActiveInputInfo
   } = useStore();
   const fileInputRef = useRef(null);
   const [hasNotifiedOverdue, setHasNotifiedOverdue] = useState(false);
@@ -64,10 +69,6 @@ function App() {
   // Revert Month Close States
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
   const [reverting, setReverting] = useState(false);
-
-  // Calculator State & Active Input Tracker
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
-  const [activeInputInfo, setActiveInputInfo] = useState(null);
 
   // Quick Expense Modal States
   const [isQuickExpenseOpen, setIsQuickExpenseOpen] = useState(false);
@@ -87,36 +88,33 @@ function App() {
         !target.closest('.calculator-modal-content') &&
         (target.type === 'number' || target.type === 'text' || target.inputMode === 'decimal')
       ) {
-        let label = '';
-        const formGroup = target.closest('.form-group');
-        if (formGroup) {
-          label = formGroup.querySelector('label')?.textContent || '';
-        } else {
-          const td = target.closest('td');
-          if (td) {
-            const colIndex = td.cellIndex;
-            const table = td.closest('table');
-            const th = table?.querySelectorAll('thead th')?.[colIndex];
-            if (th) {
-              label = th.textContent || '';
-            }
-          }
+        const info = getInputInfo(target);
+        if (info) {
+          setActiveInputInfo(info);
         }
-        if (!label) {
-          label = target.placeholder || target.getAttribute('aria-label') || target.name || 'Campo numérico';
-        }
-
-        setActiveInputInfo({
-          element: target,
-          label: label.replace(/[*:]/g, '').trim(),
-          value: target.value
-        });
       }
     };
 
     window.addEventListener('focusin', handleFocusIn);
     return () => window.removeEventListener('focusin', handleFocusIn);
-  }, []);
+  }, [setActiveInputInfo]);
+
+  // Atajo global de teclado para la calculadora (F2 o Alt+C)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'F2' || (e.altKey && (e.key === 'c' || e.key === 'C'))) {
+        e.preventDefault();
+        if (isCalculatorOpen) {
+          closeCalculator();
+        } else {
+          openCalculator();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isCalculatorOpen, openCalculator, closeCalculator]);
 
   useEffect(() => {
     globalStyles();
@@ -346,8 +344,9 @@ function App() {
             <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
             <button
               className="btn btn-secondary"
-              onClick={() => setIsCalculatorOpen(true)}
-              title="Calculadora"
+              onClick={() => openCalculator()}
+              title="Calculadora (F2)"
+              aria-label="Abrir calculadora"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <Calculator size={18} />
@@ -546,7 +545,7 @@ function App() {
       {/* Modal Calculadora Básica */}
       <CalculatorModal
         isOpen={isCalculatorOpen}
-        onClose={() => setIsCalculatorOpen(false)}
+        onClose={closeCalculator}
         activeInputInfo={activeInputInfo}
       />
 
@@ -596,15 +595,31 @@ function App() {
           </div>
           <div className="form-group">
             <label>Importe (€)</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="input"
-              value={quickExpenseData.importe}
-              onChange={e => setQuickExpenseData({ ...quickExpenseData, importe: normalizeDecimalInput(e.target.value) })}
-              placeholder="0,00"
-              required
-            />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                inputMode="decimal"
+                className="input"
+                value={quickExpenseData.importe}
+                onChange={e => setQuickExpenseData({ ...quickExpenseData, importe: normalizeDecimalInput(e.target.value) })}
+                placeholder="0,00"
+                required
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={(e) => {
+                  const input = e.currentTarget.previousElementSibling;
+                  openCalculator(input);
+                }}
+                title="Calcular importe"
+                aria-label="Calcular importe"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.75rem', flexShrink: 0 }}
+              >
+                <Calculator size={18} />
+              </button>
+            </div>
           </div>
           <div className="form-group">
             <label>Entidad</label>

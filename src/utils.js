@@ -99,3 +99,31 @@ export function setLinkInfo(concept, loanId, cardId) {
   return clean;
 }
 
+export function getInputInfo(target) {
+  if (!target || !(target instanceof HTMLInputElement)) return null;
+  let label = '';
+  const formGroup = target.closest('.form-group');
+  if (formGroup) {
+    label = formGroup.querySelector('label')?.textContent || '';
+  } else {
+    const td = target.closest('td');
+    if (td) {
+      const colIndex = td.cellIndex;
+      const table = td.closest('table');
+      const th = table?.querySelectorAll('thead th')?.[colIndex];
+      if (th) {
+        label = th.textContent || '';
+      }
+    }
+  }
+  if (!label) {
+    label = target.placeholder || target.getAttribute('aria-label') || target.name || 'Campo numérico';
+  }
+
+  return {
+    element: target,
+    label: label.replace(/[*:]/g, '').trim(),
+    value: target.value
+  };
+}
+

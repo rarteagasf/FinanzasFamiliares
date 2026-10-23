@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createClient } from '@supabase/supabase-js';
-import { getLinkInfo } from '../utils';
+import { getLinkInfo, getInputInfo } from '../utils';
 
 const normalizeString = (str) => {
   if (!str) return '';
@@ -161,6 +161,40 @@ export const useStore = create((set, get) => ({
   targetCardTimestamp: 0,
   navigateToCard: (cardId) => set({ activeTab: 'planning', targetCardId: cardId, targetCardTimestamp: Date.now() }),
   clearTargetCard: () => set({ targetCardId: null }),
+
+  // Calculator global state & actions
+  isCalculatorOpen: false,
+  activeInputInfo: null,
+  openCalculator: (targetElementOrInfo = null) => {
+    let inputInfo = null;
+    if (targetElementOrInfo) {
+      if (targetElementOrInfo instanceof HTMLElement) {
+        inputInfo = getInputInfo(targetElementOrInfo);
+      } else if (typeof targetElementOrInfo === 'object') {
+        inputInfo = targetElementOrInfo;
+      }
+    } else {
+      const activeEl = document.activeElement;
+      if (
+        activeEl instanceof HTMLInputElement &&
+        !activeEl.closest('.calculator-modal-content') &&
+        (activeEl.type === 'number' || activeEl.type === 'text' || activeEl.inputMode === 'decimal')
+      ) {
+        inputInfo = getInputInfo(activeEl);
+      } else {
+        const prev = get().activeInputInfo;
+        if (prev?.element && document.body.contains(prev.element)) {
+          inputInfo = prev;
+        }
+      }
+    }
+    set({
+      isCalculatorOpen: true,
+      activeInputInfo: inputInfo || null
+    });
+  },
+  closeCalculator: () => set({ isCalculatorOpen: false }),
+  setActiveInputInfo: (info) => set({ activeInputInfo: info }),
 
   // Load Initial Data
   fetchInitialData: async () => {

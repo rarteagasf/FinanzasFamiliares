@@ -65,17 +65,32 @@ export default function CalculatorModal({ isOpen, onClose, activeInputInfo }) {
   const [waitingForOperand, setWaitingForOperand] = useState(false);
   const [hasCalculated, setHasCalculated] = useState(false);
 
-  // Reset al abrir
+  // Reset y precarga al abrir
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      // Precargar valor si el campo activo contiene un importe válido y display está en '0'
+      if (activeInputInfo?.element && document.body.contains(activeInputInfo.element)) {
+        const val = parseNum(normalizeDecimalInput(activeInputInfo.element.value));
+        if (val !== 0) {
+          setDisplay(formatDisplayNum(val));
+          setWaitingForOperand(true);
+          setHasCalculated(false);
+        }
+      }
     } else {
-      document.body.style.overflow = 'unset';
+      const hasOtherModals = document.querySelector('.modal-overlay:not(.calculator-modal-overlay)');
+      if (!hasOtherModals) {
+        document.body.style.overflow = 'unset';
+      }
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      const hasOtherModals = document.querySelector('.modal-overlay:not(.calculator-modal-overlay)');
+      if (!hasOtherModals) {
+        document.body.style.overflow = 'unset';
+      }
     };
-  }, [isOpen]);
+  }, [isOpen, activeInputInfo]);
 
   const handleClear = useCallback(() => {
     setDisplay('0');
@@ -206,7 +221,11 @@ export default function CalculatorModal({ isOpen, onClose, activeInputInfo }) {
         handlePercentage();
       } else if (e.key === 'Enter' || e.key === '=') {
         e.preventDefault();
-        handleEquals();
+        if (e.key === 'Enter' && hasCalculated && activeInputInfo?.element) {
+          handleApplyToActiveInput();
+        } else {
+          handleEquals();
+        }
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         handleBackspace();
@@ -267,8 +286,11 @@ export default function CalculatorModal({ isOpen, onClose, activeInputInfo }) {
   return (
     <div 
       className="modal-overlay calculator-modal-overlay" 
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{ zIndex: 1100 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{ zIndex: 1200 }}
     >
       <div 
         className="modal-content calculator-modal-content"
