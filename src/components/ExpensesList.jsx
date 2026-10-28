@@ -7,7 +7,7 @@ import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function ExpensesList() {
-  const { expenses, entities, balances, loans, cards, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity, openCalculator } = useStore();
+  const { expenses, prevPendingExpenses = [], entities, balances, loans, cards, resetExpensesState, addExpense, updateExpense, deleteExpense, addEntity, deleteEntity, openCalculator, getUnlistedCardReceipts } = useStore();
   
   const [sortBy, setSortBy] = useState('dia'); // 'dia' | 'entidad'
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' | 'desc'
@@ -226,13 +226,25 @@ export default function ExpensesList() {
   };
 
 
+  const unlistedCardReceipts = getUnlistedCardReceipts ? getUnlistedCardReceipts() : [];
+  const unlistedCaixa = unlistedCardReceipts.filter(r => r.entidad === 'CAIXABANK').reduce((s, r) => s + r.importe, 0);
+  const unlistedING = unlistedCardReceipts.filter(r => r.entidad === 'ING').reduce((s, r) => s + r.importe, 0);
+
   const totalPendienteCaixa = expenses
     .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
-    .reduce((acc, curr) => acc + curr.importe, 0);
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + prevPendingExpenses
+    .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + unlistedCaixa;
     
   const totalPendienteING = expenses
     .filter(e => e.estado === 'X' && e.entidad === 'ING')
-    .reduce((acc, curr) => acc + curr.importe, 0);
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + prevPendingExpenses
+    .filter(e => e.estado === 'X' && e.entidad === 'ING')
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + unlistedING;
 
   const dispCaixa = (balances?.caixabank || 0) - totalPendienteCaixa;
   const dispING = (balances?.ing_nomina || 0) - totalPendienteING;

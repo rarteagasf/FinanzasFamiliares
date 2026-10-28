@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate, getLinkInfo } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate, getLinkInfo, getCardEntity } from '../utils';
 import { Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
@@ -420,7 +420,21 @@ export default function PlanningView() {
                     </>
                   ) : (
                     <>
-                      <td style={{ fontWeight: 600 }}>{card.tarjeta}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span>{card.tarjeta}</span>
+                          <span style={{
+                            fontSize: '0.7rem',
+                            padding: '0.1rem 0.4rem',
+                            borderRadius: '4px',
+                            background: getCardEntity(card) === 'ING' ? 'rgba(179, 91, 55, 0.15)' : 'rgba(54, 78, 85, 0.15)',
+                            color: getCardEntity(card) === 'ING' ? 'var(--ing)' : 'var(--caixabank)',
+                            fontWeight: 500
+                          }}>
+                            {getCardEntity(card)}
+                          </span>
+                        </div>
+                      </td>
                       <td><CurrencyValue value={card.credito} /></td>
                       <td><CurrencyValue value={card.cuota} /></td>
                       <td style={{ color: 'var(--danger)', fontWeight: 600 }}><CurrencyValue value={Math.abs(card.pendiente)} /></td>

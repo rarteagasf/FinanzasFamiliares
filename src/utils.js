@@ -99,6 +99,15 @@ export function setLinkInfo(concept, loanId, cardId) {
   return clean;
 }
 
+export function getCardEntity(card) {
+  if (!card) return 'CAIXABANK';
+  if (card.entidad) return card.entidad;
+  const str = String(card.tarjeta || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (str.includes('ing')) return 'ING';
+  if (str.includes('caixa') || str.includes('carrefour')) return 'CAIXABANK';
+  return 'CAIXABANK';
+}
+
 export function getInputInfo(target) {
   if (!target || !(target instanceof HTMLInputElement)) return null;
   let label = '';

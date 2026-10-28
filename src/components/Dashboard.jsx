@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useStore, isLoanMatching, isCardMatching } from '../store/useStore';
-import { ArrowDownCircle, Pencil, Check, Trash2, Calculator } from 'lucide-react';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo } from '../utils';
+import { ArrowDownCircle, Pencil, Check, Trash2, Calculator, ExternalLink } from 'lucide-react';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo, getCardEntity } from '../utils';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, updateExpense, deleteExpense, getDynamicCards, navigateToCard, openCalculator } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, addExpense, updateExpense, deleteExpense, getDynamicCards, getUnlistedCardReceipts, navigateToCard, openCalculator } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -20,6 +20,33 @@ export default function Dashboard() {
   const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const handleMarkAsPaid = (expense) => {
+    if (expense.isCardReceipt) {
+      const card = cards.find(c => c.id === expense.cardId);
+      const cardName = card?.tarjeta || expense.concepto;
+      setConfirmState({
+        isOpen: true,
+        title: 'Confirmar pago de recibo',
+        message: `¿Estás seguro de registrar como "Pagado" el recibo de "${cardName}" (${formatCurrency(expense.importe)}) en ${expense.entidad}?`,
+        onConfirm: async () => {
+          const res = await addExpense({
+            dia: new Date().getDate(),
+            concepto: `${cardName} [card:${expense.cardId}]`,
+            importe: expense.importe,
+            entidad: expense.entidad,
+            estado: 'P'
+          });
+          if (res?.savedLocally) {
+            toast.info('Recibo de tarjeta registrado como pagado en el dispositivo');
+          } else if (!res?.error) {
+            toast.success('Recibo de tarjeta registrado como pagado');
+          } else {
+            toast.error('Error al registrar pago: ' + (res.error?.message || 'Error en el servidor'));
+          }
+        }
+      });
+      return;
+    }
+
     const cleanConcept = getLinkInfo(expense.concepto).concept;
     setConfirmState({
       isOpen: true,
@@ -105,24 +132,35 @@ export default function Dashboard() {
     });
   };
 
-  const dynamicCards = getDynamicCards();
+   const dynamicCards = getDynamicCards();
+  const unlistedCardReceipts = getUnlistedCardReceipts ? getUnlistedCardReceipts() : [];
+
+  const unlistedCaixaCards = unlistedCardReceipts
+    .filter(r => r.entidad === 'CAIXABANK')
+    .reduce((acc, curr) => acc + curr.importe, 0);
+
+  const unlistedINGCards = unlistedCardReceipts
+    .filter(r => r.entidad === 'ING')
+    .reduce((acc, curr) => acc + curr.importe, 0);
 
   const totalSaldos = (balances.caixabank || 0) + (balances.hucha || 0) + (balances.ing_nomina || 0) + (balances.ing_naranja || 0);
   
-  // Calcular gastos pendientes totales
+  // Calcular gastos pendientes totales (incluyendo recibos pendientes de tarjetas por entidad)
   const totalPendienteCaixa = expenses
     .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
     .reduce((acc, curr) => acc + curr.importe, 0)
     + prevPendingExpenses
     .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
-    .reduce((acc, curr) => acc + curr.importe, 0);
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + unlistedCaixaCards;
     
   const totalPendienteING = expenses
     .filter(e => e.estado === 'X' && e.entidad === 'ING')
     .reduce((acc, curr) => acc + curr.importe, 0)
     + prevPendingExpenses
     .filter(e => e.estado === 'X' && e.entidad === 'ING')
-    .reduce((acc, curr) => acc + curr.importe, 0);
+    .reduce((acc, curr) => acc + curr.importe, 0)
+    + unlistedINGCards;
 
   const totalGastosPendientes = totalPendienteCaixa + totalPendienteING;
   
@@ -131,10 +169,11 @@ export default function Dashboard() {
   const dispING = balances.ing_nomina - totalPendienteING;
   const totalDisponible = dispCaixa + dispING + balances.ing_naranja + balances.hucha;
 
-  // Gastos Pendientes para desglose
+  // Gastos Pendientes para desglose (incluyendo recibos pendientes de tarjetas)
   const pendingExpenses = [
     ...expenses.filter(e => e.estado === 'X'),
-    ...prevPendingExpenses
+    ...prevPendingExpenses,
+    ...unlistedCardReceipts
   ].sort((a, b) => {
     if (a.isFromPreviousMonth && !b.isFromPreviousMonth) return -1;
     if (!a.isFromPreviousMonth && b.isFromPreviousMonth) return 1;
@@ -263,8 +302,18 @@ export default function Dashboard() {
                   }}
                 >
                   <td style={{ fontWeight: 600 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       {card.tarjeta}
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '0.1rem 0.35rem',
+                        borderRadius: '4px',
+                        background: getCardEntity(card) === 'ING' ? 'rgba(179, 91, 55, 0.12)' : 'rgba(54, 78, 85, 0.12)',
+                        color: getCardEntity(card) === 'ING' ? 'var(--ing)' : 'var(--caixabank)',
+                        fontWeight: 600
+                      }}>
+                        {getCardEntity(card)}
+                      </span>
                     </div>
                   </td>
                   <td><CurrencyValue value={card.cuota} /></td>
@@ -308,9 +357,42 @@ export default function Dashboard() {
                         {lista.map(expense => (
                           <tr key={expense.id}>
                             <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                              {expense.isFromPreviousMonth ? `${expense.dia} (Mes Ant.)` : expense.dia}
+                              {expense.isCardReceipt ? (
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  padding: '0.1rem 0.35rem',
+                                  borderRadius: '4px',
+                                  background: 'rgba(59, 130, 246, 0.12)',
+                                  color: 'var(--primary)',
+                                  fontWeight: 600
+                                }}>
+                                  Tarj.
+                                </span>
+                              ) : expense.isFromPreviousMonth ? (
+                                `${expense.dia} (Mes Ant.)`
+                              ) : (
+                                expense.dia
+                              )}
                             </td>
-                            <td style={{ padding: '0.5rem' }}>{getLinkInfo(expense.concepto).concept}</td>
+                            <td style={{ padding: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span>{getLinkInfo(expense.concepto).concept}</span>
+                                {expense.isCardReceipt && (
+                                  <span
+                                    style={{
+                                      cursor: 'pointer',
+                                      fontSize: '0.72rem',
+                                      color: 'var(--text-muted)',
+                                      textDecoration: 'underline'
+                                    }}
+                                    onClick={() => navigateToCard(expense.cardId)}
+                                    title="Ver tarjeta en Planificación"
+                                  >
+                                    (Ver Tarjeta)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>
                               <CurrencyValue value={expense.importe} />
                             </td>
@@ -329,47 +411,70 @@ export default function Dashboard() {
                                     alignItems: 'center',
                                     justifyContent: 'center'
                                   }}
-                                  title="Marcar como Pagado"
+                                  title={expense.isCardReceipt ? "Registrar recibo como Pagado" : "Marcar como Pagado"}
                                   onClick={() => handleMarkAsPaid(expense)}
                                 >
                                   <Check size={14} />
                                 </button>
-                                <button
-                                  className="btn"
-                                  style={{
-                                    padding: '0.25rem',
-                                    background: 'var(--card-bg, rgba(255,255,255,0.05))',
-                                    color: 'var(--text-muted)',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                  title="Editar gasto"
-                                  onClick={() => openExpenseModal(expense)}
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button
-                                  className="btn"
-                                  style={{
-                                    padding: '0.25rem',
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    color: 'var(--danger)',
-                                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                  title="Eliminar gasto"
-                                  onClick={() => handleDeleteExpense(expense)}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                                {expense.isCardReceipt ? (
+                                  <button
+                                    className="btn"
+                                    style={{
+                                      padding: '0.25rem',
+                                      background: 'var(--card-bg, rgba(255,255,255,0.05))',
+                                      color: 'var(--text-muted)',
+                                      border: '1px solid var(--border)',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                    title="Gestionar tarjeta en Planificación"
+                                    onClick={() => navigateToCard(expense.cardId)}
+                                  >
+                                    <ExternalLink size={14} />
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      className="btn"
+                                      style={{
+                                        padding: '0.25rem',
+                                        background: 'var(--card-bg, rgba(255,255,255,0.05))',
+                                        color: 'var(--text-muted)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                      }}
+                                      title="Editar gasto"
+                                      onClick={() => openExpenseModal(expense)}
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                    <button
+                                      className="btn"
+                                      style={{
+                                        padding: '0.25rem',
+                                        background: 'rgba(239, 68, 68, 0.1)',
+                                        color: 'var(--danger)',
+                                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                      }}
+                                      title="Eliminar gasto"
+                                      onClick={() => handleDeleteExpense(expense)}
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>

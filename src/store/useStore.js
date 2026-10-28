@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createClient } from '@supabase/supabase-js';
-import { getLinkInfo, getInputInfo } from '../utils';
+import { getLinkInfo, getInputInfo, getCardEntity } from '../utils';
 
 const normalizeString = (str) => {
   if (!str) return '';
@@ -878,6 +878,41 @@ export const useStore = create((set, get) => ({
         paidAmount: 0,
       };
     });
+  },
+
+  getUnlistedCardReceipts: () => {
+    const { expenses } = get();
+    const dynamicCards = get().getDynamicCards();
+    return dynamicCards
+      .map(card => {
+        const cuota = card.cuota || 0;
+        if (cuota <= 0) return null;
+
+        const expensesForCard = (expenses || []).filter(e => {
+          const { cardId, concept } = getLinkInfo(e.concepto);
+          return isCardMatching(concept, cardId, card);
+        });
+
+        const alreadyCovered = expensesForCard
+          .filter(e => e.estado === 'X' || e.estado === 'P')
+          .reduce((sum, e) => sum + e.importe, 0);
+
+        const remainingReceipt = Math.max(0, cuota - alreadyCovered);
+        if (remainingReceipt <= 0) return null;
+
+        const ent = getCardEntity(card);
+        return {
+          id: `card_receipt_${card.id}`,
+          isCardReceipt: true,
+          cardId: card.id,
+          dia: 1,
+          concepto: `Recibo ${card.tarjeta}`,
+          importe: remainingReceipt,
+          entidad: ent,
+          estado: 'X'
+        };
+      })
+      .filter(Boolean);
   },
 
   exportAllData: async () => {
