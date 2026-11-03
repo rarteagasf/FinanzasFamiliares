@@ -85,7 +85,7 @@ function ExpenseFormContent({ initialData, onClose, onSubmit, submitLabel }) {
           onChange={e => setFormData({ ...formData, concepto: e.target.value })}
           placeholder="Ej: Farmacia, Abogado, Compra..."
           required
-          autoFocus
+          autoFocus={!formData.concepto}
         />
       </div>
 
@@ -101,6 +101,7 @@ function ExpenseFormContent({ initialData, onClose, onSubmit, submitLabel }) {
             onKeyDown={onNumKeyDown}
             placeholder="0,00"
             required
+            autoFocus={!!formData.concepto && !formData.importe}
             style={{ flex: 1 }}
           />
           <button

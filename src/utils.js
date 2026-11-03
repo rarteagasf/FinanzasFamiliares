@@ -153,16 +153,20 @@ export function parseReminderForExpense(reminder, entities = [], loans = [], car
   const rawText = String(reminder.texto || '').trim();
   const normalizedText = rawText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+  // Detectar cobros puros (salario, nómina, pensión, prestación, finiquito, devolución hacienda)
+  const pureIncomeRegex = /^(?:cobrar|ingreso|cobro|recibir|ingresar)\s+(?:la\s+|el\s+)?(?:nomina|sueldo|pension|paro|prestacion|finiquito|devolucion\s+hacienda)\b/i;
+  const isPureIncome = pureIncomeRegex.test(normalizedText);
+
+  // Todo recordatorio pendiente que no sea cobro puro es trasladable a gasto
+  const isFeasible = !reminder.completado && !isPureIncome;
+
   const expenseKeywordRegex = /(?:pagar|pago|abonar|comprar|compra|transferencia|recibo|factura|cuota|alquiler|seguro|impuesto|taller|revision|suscripcion|renovar|deuda|tarjeta|prestamo)/i;
   const incomeKeywordRegex = /(?:cobrar|cobro|ingresar|ingreso|recibir|percibir|sueldo|nomina)/i;
-  const currencyRegex = /(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|euros?)\b/gi;
+
+  const currencyRegex = /(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|\$|euros?\b)/gi;
+  const prepositionAmountRegex = /(?:\b(?:por|de|importe:?|total:?|precio:?|cantidad:?)\s+)(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\b/gi;
+  const decimalNumberRegex = /\b(\d+(?:[.,]\d{1,2}))\b/g;
   const generalNumberRegex = /\b(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\b/g;
-
-  const hasCurrency = /(?:\d|\b)\s*(?:€|euros?)\b/i.test(rawText);
-  const hasExpenseKeywords = expenseKeywordRegex.test(normalizedText);
-
-  // Un recordatorio es factible si está pendiente y contiene un importe monetario o palabras clave de gasto
-  const isFeasible = !reminder.completado && (hasCurrency || hasExpenseKeywords);
 
   // Extracción inteligente de importe
   // Separamos en cláusulas (por puntos, comas, conectores condicionales)
@@ -173,19 +177,19 @@ export function parseReminderForExpense(reminder, entities = [], loans = [], car
   let bestAmount = '';
   let bestClauseForConcept = '';
 
+  // 1. Buscar en cláusulas de gasto con símbolo monetario
   for (const clause of clauses) {
     const normClause = clause.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const isExpenseClause = expenseKeywordRegex.test(normClause);
     const isIncomeClause = incomeKeywordRegex.test(normClause);
 
-    // Buscar importes en la cláusula
     const matches = [...clause.matchAll(currencyRegex)];
     if (matches.length > 0) {
       const matchVal = matches[0][1];
       if (isExpenseClause && !isIncomeClause) {
         bestAmount = matchVal;
         bestClauseForConcept = clause;
-        break; // Prioridad máxima encontrada
+        break;
       } else if (!isIncomeClause && !bestAmount) {
         bestAmount = matchVal;
         bestClauseForConcept = clause;
@@ -193,47 +197,90 @@ export function parseReminderForExpense(reminder, entities = [], loans = [], car
     }
   }
 
-  // Fallback si no se encontró con símbolo € pero hay cláusula de gasto con número
+  // 2. Si no se encontró en cláusula prioritaria, buscar cualquier importe con símbolo €/euros en el texto completo
   if (!bestAmount) {
-    for (const clause of clauses) {
-      const normClause = clause.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      if (expenseKeywordRegex.test(normClause)) {
-        const numMatches = [...clause.matchAll(generalNumberRegex)];
-        if (numMatches.length > 0) {
-          bestAmount = numMatches[0][1];
-          bestClauseForConcept = clause;
-          break;
-        }
+    const allMatches = [...rawText.matchAll(currencyRegex)];
+    if (allMatches.length > 0) {
+      bestAmount = allMatches[allMatches.length - 1][1];
+    }
+  }
+
+  // 3. Si no hay símbolo, buscar importe con preposición o indicador ("de 50", "por 120", "importe: 80")
+  if (!bestAmount) {
+    const prepMatches = [...rawText.matchAll(prepositionAmountRegex)];
+    if (prepMatches.length > 0) {
+      bestAmount = prepMatches[0][1];
+    }
+  }
+
+  // 4. Si aún no hay importe, buscar números decimales
+  if (!bestAmount) {
+    const decMatches = [...rawText.matchAll(decimalNumberRegex)];
+    if (decMatches.length > 0) {
+      bestAmount = decMatches[0][1];
+    }
+  }
+
+  // 5. Fallback a números enteros que no sean años de calendario (2020-2035)
+  if (!bestAmount) {
+    const allNums = [...rawText.matchAll(generalNumberRegex)];
+    for (const match of allNums) {
+      const val = parseInt(match[1], 10);
+      if (!isNaN(val) && (val < 2020 || val > 2035)) {
+        bestAmount = match[1];
+        break;
       }
     }
   }
 
-  // Fallback general al primer importe con €
-  if (!bestAmount) {
-    const allMatches = [...rawText.matchAll(currencyRegex)];
-    if (allMatches.length > 0) {
-      bestAmount = allMatches[allMatches.length - 1][1]; // Solemos poner el pago al final
-    }
-  }
-
-  // Limpieza del concepto
+  // LIMPIEZA RIGUROSA DEL CONCEPTO (Garantizando ausencia total de importes)
   let conceptBase = bestClauseForConcept || rawText;
 
-  // Si hay conector de bifurcación "o llamarlo..." o "si no..." lo cortamos
-  conceptBase = conceptBase.split(/\b(?:o llamarlo|o llamar|si no he cobrado|si no cobro)\b/i)[0].trim();
+  // Cortar bifurcaciones o condiciones secundarias ("o llamar...", "si no...")
+  conceptBase = conceptBase.split(/\b(?:o llamarlo|o llamar|si no he cobrado|si no cobro|cuando pueda)\b/i)[0].trim();
 
-  // Eliminar importes y símbolos monetarios del concepto
-  conceptBase = conceptBase.replace(/(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|euros?)\b/gi, '').trim();
+  // 1. Eliminar importes precedidos de preposiciones o frases indicadoras (ej: 'de 60,50€', 'por 45 euros', 'presupuesto de 350')
+  conceptBase = conceptBase.replace(/\b(?:por\s+(?:un\s+)?importe(?:\s+de)?|por\s+valor(?:\s+de)?|por\s+la\s+cantidad(?:\s+de)?|presupuesto(?:\s+de)?|importe:?|total:?|precio:?|cantidad:?|por|de)\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|\$|euros?\b)?/gi, ' ');
 
-  // Limpiar muletillas introductorias habituales
-  conceptBase = conceptBase.replace(/^(?:tengo que|hay que|recordar|hacer|toca|debemos|debo)\s+/i, '');
-  conceptBase = conceptBase.replace(/^(?:pagar|hacer transferencia a|transferencia a|abonar|comprar|ingresar)\s+(?:a|al|a la|el|la|los|las)?\s*/i, '');
-  conceptBase = conceptBase.replace(/^(?:a|al|a la|el|la)\s+/i, '');
-  conceptBase = conceptBase.trim();
+  // 2. Eliminar cualquier importe con símbolo monetario (€, $, euros)
+  conceptBase = conceptBase.replace(/(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|\$|euros?\b)/gi, ' ');
 
-  // Si quedó muy vacío o es confuso, usar una versión amigable
-  if (!conceptBase || conceptBase.length < 3) {
-    conceptBase = rawText.slice(0, 50).trim();
+  // 3. Eliminar de forma exacta bestAmount si aún quedara
+  if (bestAmount) {
+    const amountClean = bestAmount.trim();
+    const dotVariant = amountClean.replace(',', '.');
+    const commaVariant = amountClean.replace('.', ',');
+    const escapeRegex = (s) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const pattern = new RegExp(`\\b(?:${escapeRegex(dotVariant)}|${escapeRegex(commaVariant)})\\b`, 'gi');
+    conceptBase = conceptBase.replace(pattern, ' ');
+  }
+
+  // 4. Eliminar símbolos monetarios sueltos
+  conceptBase = conceptBase.replace(/(?:€|\$|\beuros?\b)/gi, ' ');
+
+  // 5. Eliminar números decimales sueltos
+  conceptBase = conceptBase.replace(/\b\d+[.,]\d{1,2}\b/g, ' ');
+
+  // 6. Eliminar prefijos de recordatorio y muletillas
+  conceptBase = conceptBase.replace(/^(?:recordatorio|recordar|nota):?\s*/i, '');
+  conceptBase = conceptBase.replace(/^(?:tengo que|hay que|toca|debemos|debo|acordarse de|no olvidar)\s+/i, '');
+
+  // 7. Eliminar verbos de acción y conectores para extraer el objeto/servicio limpio
+  conceptBase = conceptBase.replace(/^(?:pagar|pago de|pago|abonar|abono de|liquidar|liquidación de|ingresar|hacer transferencia a|transferencia a|transferir a|transferir|comprar|compra de|pedir cita|pedir|solicitar)\s+(?:a|al|a la|el|la|los|las|un|una|unos|unas)?\s*/i, '');
+
+  // 8. Eliminar preposiciones y artículos huérfanos al inicio o al final
+  conceptBase = conceptBase.replace(/^(?:de|del|por|para|a|al)\s+/i, '');
+  conceptBase = conceptBase.replace(/\s+(?:de|del|por|para|a|al|con|en)\s*$/i, '');
+
+  // 9. Limpiar signos de puntuación huérfanos y espacios múltiples
+  conceptBase = conceptBase.replace(/\(\s*\)/g, ' ');
+  conceptBase = conceptBase.replace(/\[\s*\]/g, ' ');
+  conceptBase = conceptBase.replace(/^[\s,.:;_\-–—/|\\]+|[\s,.:;_\-–—/|\\]+$/g, '');
+  conceptBase = conceptBase.replace(/\s{2,}/g, ' ').trim();
+
+  // 10. Garantía estricta: NUNCA dejar importes en el concepto ni retornar vacío
+  if (!conceptBase || conceptBase.length < 2) {
+    conceptBase = 'Gasto recordatorio';
   }
 
   // Capitalizar la primera letra
