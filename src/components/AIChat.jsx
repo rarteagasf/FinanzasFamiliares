@@ -234,11 +234,11 @@ function renderMarkdown(text) {
     }
 
     // 5. Unordered list (*, -, +)
-    if (/^[\*\-\+]\s/.test(line)) {
+    if (/^[*\-+]\s/.test(line)) {
       const items = [];
       const startIdx = i;
-      while (i < lines.length && /^[\*\-\+]\s/.test(lines[i].trim())) {
-        items.push(lines[i].trim().replace(/^[\*\-\+]\s+/, ''));
+      while (i < lines.length && /^[*\-+]\s/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[*\-+]\s+/, ''));
         i++;
       }
       elements.push(
@@ -270,7 +270,7 @@ function renderMarkdown(text) {
     }
 
     // 7. Horizontal line (---, ***, ___)
-    if (/^(\-{3,}|\*{3,}|_{3,})$/.test(line)) {
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
       elements.push(<hr key={`hr-${i}`} style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />);
       i++;
       continue;
@@ -323,7 +323,22 @@ export default function AIChat() {
   const getFinanceContext = async () => {
     try {
       setStatusMessage('Recopilando datos financieros...');
-      const data = await exportAllData();
+      let data;
+      try {
+        data = await exportAllData();
+      } catch (fetchErr) {
+        console.warn('Fallo al exportar datos online para IA, usando caché:', fetchErr);
+      }
+
+      if (!data || !data.months || data.months.length === 0) {
+        try {
+          const cached = localStorage.getItem('finanzas_cache_v1');
+          if (cached) data = JSON.parse(cached);
+        } catch (e) {
+          console.warn('Error al leer caché en AIChat:', e);
+        }
+      }
+      data = data || {};
 
       const monthsMap = {};
       (data.months || []).forEach(m => {

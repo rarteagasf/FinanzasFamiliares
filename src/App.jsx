@@ -53,13 +53,12 @@ function App() {
     entities,
     addExpense,
     isCalculatorOpen,
-    activeInputInfo,
     openCalculator,
     closeCalculator,
     setActiveInputInfo
   } = useStore();
   const fileInputRef = useRef(null);
-  const [hasNotifiedOverdue, setHasNotifiedOverdue] = useState(false);
+  const hasNotifiedOverdueRef = useRef(false);
 
   // Close/Create Month Modal States
   const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
@@ -79,25 +78,6 @@ function App() {
     entidad: 'CAIXABANK',
     estado: 'X'
   });
-
-  useEffect(() => {
-    const handleFocusIn = (e) => {
-      const target = e.target;
-      if (
-        target instanceof HTMLInputElement &&
-        !target.closest('.calculator-modal-content') &&
-        (target.type === 'number' || target.type === 'text' || target.inputMode === 'decimal')
-      ) {
-        const info = getInputInfo(target);
-        if (info) {
-          setActiveInputInfo(info);
-        }
-      }
-    };
-
-    window.addEventListener('focusin', handleFocusIn);
-    return () => window.removeEventListener('focusin', handleFocusIn);
-  }, [setActiveInputInfo]);
 
   // Atajo global de teclado para la calculadora (F2 o Alt+C)
   useEffect(() => {
@@ -140,6 +120,20 @@ function App() {
 
     const handleFocusIn = (e) => {
       const el = e.target;
+
+      // Actualizar campo activo de calculadora si aplica
+      if (
+        el instanceof HTMLInputElement &&
+        !el.closest('.calculator-modal-content') &&
+        (el.type === 'number' || el.type === 'text' || el.inputMode === 'decimal')
+      ) {
+        const info = getInputInfo(el);
+        if (info) {
+          setActiveInputInfo(info);
+        }
+      }
+
+      // Auto-selección de texto
       if (
         (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) &&
         !['checkbox', 'radio', 'file', 'button', 'submit', 'reset', 'color', 'range'].includes(el.type) &&
@@ -184,10 +178,10 @@ function App() {
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('mousedown', handleMouseDown);
     };
-  }, []);
+  }, [fetchInitialData, setActiveInputInfo]);
 
   useEffect(() => {
-    if (!loading && !hasNotifiedOverdue) {
+    if (!loading && !hasNotifiedOverdueRef.current) {
       const todayStr = new Date().toISOString().split('T')[0];
       const overdueCount = reminders.filter(r => !r.completado && r.fecha_limite && r.fecha_limite < todayStr).length;
       if (overdueCount > 0) {
@@ -199,9 +193,9 @@ function App() {
           }
         });
       }
-      setHasNotifiedOverdue(true);
+      hasNotifiedOverdueRef.current = true;
     }
-  }, [loading, reminders, hasNotifiedOverdue]);
+  }, [loading, reminders, setActiveTab]);
 
   const pendingRemindersCount = reminders ? reminders.filter(r => !r.completado).length : 0;
 
@@ -546,7 +540,6 @@ function App() {
       <CalculatorModal
         isOpen={isCalculatorOpen}
         onClose={closeCalculator}
-        activeInputInfo={activeInputInfo}
       />
 
       {/* Botón Flotante Permanente de Registro Diario (FAB) */}

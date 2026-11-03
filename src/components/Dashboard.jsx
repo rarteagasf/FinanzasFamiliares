@@ -1,20 +1,20 @@
-import { useState } from 'react';
-import { useStore, isLoanMatching, isCardMatching } from '../store/useStore';
-import { ArrowDownCircle, Pencil, Check, Trash2, Calculator, ExternalLink } from 'lucide-react';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatInputDecimal, onNumKeyDown, getLinkInfo, setLinkInfo, getCardEntity } from '../utils';
+import { useState, useMemo } from 'react';
+import { useStore } from '../store/useStore';
+import { ArrowDownCircle, Pencil, Check, Trash2, ExternalLink } from 'lucide-react';
+import { formatCurrency, formatInputDecimal, normalizeDecimalInput, parseNum, getLinkInfo, getCardEntity } from '../utils';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
+import ExpenseFormModal from './ui/ExpenseFormModal';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { balances, expenses, prevPendingExpenses = [], cards = [], loans = [], entities, updateBalance, addExpense, updateExpense, deleteExpense, getDynamicCards, getUnlistedCardReceipts, navigateToCard, openCalculator } = useStore();
+  const { balances, expenses, prevPendingExpenses = [], cards = [], entities, updateBalance, addExpense, updateExpense, deleteExpense, getDynamicCards, getUnlistedCardReceipts, navigateToCard } = useStore();
   const [editingAccount, setEditingAccount] = useState(null);
   const [editValue, setEditValue] = useState('');
 
   // Editing Expense Modal State
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
-  const [formData, setFormData] = useState({ dia: 1, concepto: '', importe: '', entidad: '', estado: 'X', loanId: '', cardId: '' });
 
   // Confirmation State
   const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
@@ -86,38 +86,16 @@ export default function Dashboard() {
 
   const openExpenseModal = (expense) => {
     setEditingExpense(expense);
-    const linkInfo = getLinkInfo(expense.concepto);
-    const resolvedLoan = linkInfo.loanId ? loans?.find(l => l.id === linkInfo.loanId) : loans?.find(l => isLoanMatching(linkInfo.concept, null, l));
-    const resolvedCard = linkInfo.cardId ? cards?.find(c => c.id === linkInfo.cardId) : cards?.find(c => isCardMatching(linkInfo.concept, null, c));
-
-    setFormData({
-      ...expense,
-      concepto: linkInfo.concept,
-      importe: formatInputDecimal(expense.importe),
-      loanId: linkInfo.loanId || resolvedLoan?.id || '',
-      cardId: linkInfo.cardId || resolvedCard?.id || ''
-    });
     setIsExpenseModalOpen(true);
   };
 
-  const saveExpense = async (e) => {
-    e.preventDefault();
+  const saveExpense = async (saveData) => {
     if (!editingExpense) return;
-
-    const finalConcept = setLinkInfo(formData.concepto, formData.loanId, formData.cardId);
-    const numericImporte = parseNum(normalizeDecimalInput(formData.importe));
-    const saveData = {
-      dia: formData.dia,
-      concepto: finalConcept,
-      importe: numericImporte,
-      entidad: formData.entidad,
-      estado: formData.estado
-    };
 
     setConfirmState({
       isOpen: true,
       title: 'Confirmar actualización',
-      message: `¿Estás seguro de guardar los cambios para el gasto "${formData.concepto}"?`,
+      message: `¿Estás seguro de guardar los cambios para el gasto "${saveData.concepto}"?`,
       onConfirm: async () => {
         const res = await updateExpense(editingExpense.id, saveData);
         if (res?.savedLocally) {
@@ -128,68 +106,91 @@ export default function Dashboard() {
           toast.error('Error al actualizar: ' + (res.error?.message || 'Error en el servidor'));
         }
         setIsExpenseModalOpen(false);
+        setEditingExpense(null);
       }
     });
   };
 
-   const dynamicCards = getDynamicCards();
-  const unlistedCardReceipts = getUnlistedCardReceipts ? getUnlistedCardReceipts() : [];
+  const dynamicCards = useMemo(() => {
+    return getDynamicCards();
+  }, [getDynamicCards]);
 
-  const unlistedCaixaCards = unlistedCardReceipts
-    .filter(r => r.entidad === 'CAIXABANK')
-    .reduce((acc, curr) => acc + curr.importe, 0);
+  const unlistedCardReceipts = useMemo(() => {
+    return getUnlistedCardReceipts ? getUnlistedCardReceipts() : [];
+  }, [getUnlistedCardReceipts]);
 
-  const unlistedINGCards = unlistedCardReceipts
-    .filter(r => r.entidad === 'ING')
-    .reduce((acc, curr) => acc + curr.importe, 0);
+  const {
+    totalSaldos,
+    totalPendienteCaixa,
+    totalPendienteING,
+    totalGastosPendientes,
+    dispCaixa,
+    dispING,
+    totalDisponible
+  } = useMemo(() => {
+    const unlistedCaixaCards = unlistedCardReceipts
+      .filter(r => r.entidad === 'CAIXABANK')
+      .reduce((acc, curr) => acc + curr.importe, 0);
 
-  const totalSaldos = (balances.caixabank || 0) + (balances.hucha || 0) + (balances.ing_nomina || 0) + (balances.ing_naranja || 0);
-  
-  // Calcular gastos pendientes totales (incluyendo recibos pendientes de tarjetas por entidad)
-  const totalPendienteCaixa = expenses
-    .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
-    .reduce((acc, curr) => acc + curr.importe, 0)
-    + prevPendingExpenses
-    .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
-    .reduce((acc, curr) => acc + curr.importe, 0)
-    + unlistedCaixaCards;
+    const unlistedINGCards = unlistedCardReceipts
+      .filter(r => r.entidad === 'ING')
+      .reduce((acc, curr) => acc + curr.importe, 0);
+
+    const totSaldos = (balances.caixabank || 0) + (balances.hucha || 0) + (balances.ing_nomina || 0) + (balances.ing_naranja || 0);
+
+    const totPendienteCaixa = expenses
+      .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
+      .reduce((acc, curr) => acc + curr.importe, 0)
+      + prevPendingExpenses
+      .filter(e => e.estado === 'X' && e.entidad === 'CAIXABANK')
+      .reduce((acc, curr) => acc + curr.importe, 0)
+      + unlistedCaixaCards;
+      
+    const totPendienteING = expenses
+      .filter(e => e.estado === 'X' && e.entidad === 'ING')
+      .reduce((acc, curr) => acc + curr.importe, 0)
+      + prevPendingExpenses
+      .filter(e => e.estado === 'X' && e.entidad === 'ING')
+      .reduce((acc, curr) => acc + curr.importe, 0)
+      + unlistedINGCards;
+
+    const totGastosPendientes = totPendienteCaixa + totPendienteING;
+    const dCaixa = (balances.caixabank || 0) - totPendienteCaixa;
+    const dING = (balances.ing_nomina || 0) - totPendienteING;
+    const totDisponible = dCaixa + dING + (balances.ing_naranja || 0) + (balances.hucha || 0);
+
+    return {
+      totalSaldos: totSaldos,
+      totalPendienteCaixa: totPendienteCaixa,
+      totalPendienteING: totPendienteING,
+      totalGastosPendientes: totGastosPendientes,
+      dispCaixa: dCaixa,
+      dispING: dING,
+      totalDisponible: totDisponible
+    };
+  }, [balances, expenses, prevPendingExpenses, unlistedCardReceipts]);
+
+  const activeGroups = useMemo(() => {
+    const pendingExpenses = [
+      ...expenses.filter(e => e.estado === 'X'),
+      ...prevPendingExpenses,
+      ...unlistedCardReceipts
+    ].sort((a, b) => {
+      if (a.isFromPreviousMonth && !b.isFromPreviousMonth) return -1;
+      if (!a.isFromPreviousMonth && b.isFromPreviousMonth) return 1;
+      return a.dia - b.dia;
+    });
+
+    const groupedPendientes = {};
+    entities.forEach(ent => { groupedPendientes[ent.name] = []; });
     
-  const totalPendienteING = expenses
-    .filter(e => e.estado === 'X' && e.entidad === 'ING')
-    .reduce((acc, curr) => acc + curr.importe, 0)
-    + prevPendingExpenses
-    .filter(e => e.estado === 'X' && e.entidad === 'ING')
-    .reduce((acc, curr) => acc + curr.importe, 0)
-    + unlistedINGCards;
+    pendingExpenses.forEach(exp => {
+      if (!groupedPendientes[exp.entidad]) groupedPendientes[exp.entidad] = [];
+      groupedPendientes[exp.entidad].push(exp);
+    });
 
-  const totalGastosPendientes = totalPendienteCaixa + totalPendienteING;
-  
-  // Disponible
-  const dispCaixa = balances.caixabank - totalPendienteCaixa;
-  const dispING = balances.ing_nomina - totalPendienteING;
-  const totalDisponible = dispCaixa + dispING + balances.ing_naranja + balances.hucha;
-
-  // Gastos Pendientes para desglose (incluyendo recibos pendientes de tarjetas)
-  const pendingExpenses = [
-    ...expenses.filter(e => e.estado === 'X'),
-    ...prevPendingExpenses,
-    ...unlistedCardReceipts
-  ].sort((a, b) => {
-    if (a.isFromPreviousMonth && !b.isFromPreviousMonth) return -1;
-    if (!a.isFromPreviousMonth && b.isFromPreviousMonth) return 1;
-    return a.dia - b.dia;
-  });
-  const groupedPendientes = {};
-  
-  // Initialize with known entities to maintain order
-  entities.forEach(ent => { groupedPendientes[ent.name] = []; });
-  
-  pendingExpenses.forEach(exp => {
-    if (!groupedPendientes[exp.entidad]) groupedPendientes[exp.entidad] = [];
-    groupedPendientes[exp.entidad].push(exp);
-  });
-
-  const activeGroups = Object.entries(groupedPendientes).filter(([, list]) => list.length > 0);
+    return Object.entries(groupedPendientes).filter(([, list]) => list.length > 0);
+  }, [expenses, prevPendingExpenses, unlistedCardReceipts, entities]);
 
   return (
     <div className="dashboard">
@@ -489,120 +490,17 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Modal Editar Gasto */}
-      <Modal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} title="Editar Gasto">
-        <form onSubmit={saveExpense}>
-          <div className="form-group">
-            <label>Día</label>
-            <input 
-              type="number" 
-              className="input" 
-              value={formData.dia} 
-              onChange={e => setFormData({ ...formData, dia: parseIntNum(e.target.value) })} 
-              onWheel={e => e.target.blur()} 
-              required 
-              min="1" 
-              max="31" 
-            />
-          </div>
-          <div className="form-group">
-            <label>Concepto</label>
-            <input 
-              type="text" 
-              className="input" 
-              value={formData.concepto} 
-              onChange={e => setFormData({ ...formData, concepto: e.target.value })} 
-              required 
-            />
-          </div>
-          <div className="form-group">
-            <label>Importe (€)</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input 
-                type="text" 
-                inputMode="decimal" 
-                className="input" 
-                value={formData.importe} 
-                onChange={e => setFormData({ ...formData, importe: normalizeDecimalInput(e.target.value) })} 
-                onKeyDown={onNumKeyDown} 
-                placeholder="0,00" 
-                required 
-                style={{ flex: 1 }}
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={(e) => {
-                  const input = e.currentTarget.previousElementSibling;
-                  openCalculator(input);
-                }}
-                title="Calcular importe"
-                aria-label="Calcular importe"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.75rem', flexShrink: 0 }}
-              >
-                <Calculator size={18} />
-              </button>
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Entidad</label>
-            <select 
-              className="input" 
-              value={formData.entidad} 
-              onChange={e => setFormData({ ...formData, entidad: e.target.value })} 
-              required
-            >
-              {entities.map(ent => (
-                <option key={ent.id} value={ent.name}>{ent.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Estado</label>
-            <select 
-              className="input" 
-              value={formData.estado} 
-              onChange={e => setFormData({ ...formData, estado: e.target.value })}
-            >
-              <option value="X">Pendiente</option>
-              <option value="P">Pagado</option>
-              <option value="-">No aplica</option>
-            </select>
-          </div>
-          
-          <div className="form-group">
-            <label>Vincular a Préstamo</label>
-            <select 
-              className="input" 
-              value={formData.loanId || ''} 
-              onChange={e => setFormData({ ...formData, loanId: e.target.value, cardId: '' })}
-            >
-              <option value="">Ninguno</option>
-              {loans.map(l => (
-                <option key={l.id} value={l.id}>{l.entidad} (Cuota: {l.cuota} €)</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="form-group">
-            <label>Vincular a Tarjeta</label>
-            <select 
-              className="input" 
-              value={formData.cardId || ''} 
-              onChange={e => setFormData({ ...formData, cardId: e.target.value, loanId: '' })}
-            >
-              <option value="">Ninguna</option>
-              {cards.map(c => (
-                <option key={c.id} value={c.id}>{c.tarjeta} (Pendiente: {c.pendiente} €)</option>
-              ))}
-            </select>
-          </div>
-
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-            Guardar Gasto
-          </button>
-        </form>
-      </Modal>
+      {/* Modal Editar Gasto (Unificado) */}
+      <ExpenseFormModal
+        isOpen={isExpenseModalOpen}
+        onClose={() => {
+          setIsExpenseModalOpen(false);
+          setEditingExpense(null);
+        }}
+        onSubmit={saveExpense}
+        initialData={editingExpense}
+        title="Editar Gasto"
+      />
 
       {/* Modal Confirmación Genérico */}
       <Modal 

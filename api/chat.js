@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
-      } catch (parseErr) {
+      } catch (_parseErr) {
         return res.status(400).json({ error: 'Cuerpo de petición no es JSON válido.' });
       }
     }

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { parseNum, parseIntNum, normalizeDecimalInput, formatCurrency, formatNumber, formatInputDecimal, formatShortDate, getLinkInfo, getCardEntity } from '../utils';
+import { parseNum, parseIntNum, normalizeDecimalInput, formatNumber, formatInputDecimal, formatShortDate, getCardEntity } from '../utils';
 import { Plus, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
 import CurrencyValue from './ui/CurrencyValue';
 import Modal from './ui/Modal';
@@ -23,11 +23,11 @@ export default function PlanningView() {
     clearTargetCard
   } = useStore();
 
-  const [highlightedCardId, setHighlightedCardId] = useState(null);
+
 
   useEffect(() => {
     if (targetCardId) {
-      setHighlightedCardId(targetCardId);
+
       const scrollTimer = setTimeout(() => {
         const el = document.getElementById(`card-row-${targetCardId}`);
         if (el) {
@@ -36,7 +36,7 @@ export default function PlanningView() {
       }, 100);
 
       const clearTimer = setTimeout(() => {
-        setHighlightedCardId(null);
+
         clearTargetCard();
       }, 3000);
 
@@ -67,8 +67,8 @@ export default function PlanningView() {
   const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   // Dynamic values (considering payments made in the current month)
-  const dynamicLoans = getDynamicLoans();
-  const dynamicCards = getDynamicCards();
+  const dynamicLoans = useMemo(() => getDynamicLoans(), [getDynamicLoans]);
+  const dynamicCards = useMemo(() => getDynamicCards(), [getDynamicCards]);
 
   // Totals Loans
   const totalPrestamosCapital = dynamicLoans.reduce((acc, curr) => acc + curr.capital_inicial, 0);
@@ -231,7 +231,7 @@ export default function PlanningView() {
 
     let creditoVal = field === 'credito' ? numVal : parseNum(inlineCardForm.credito);
     let pendienteVal = field === 'pendiente' ? numVal : parseNum(inlineCardForm.pendiente);
-    let disponibleVal = field === 'disponible' ? numVal : parseNum(inlineCardForm.disponible);
+
 
     if (field === 'credito') {
       newForm.disponible = formatInputDecimal(numVal - pendienteVal);
@@ -396,7 +396,7 @@ export default function PlanningView() {
             <tbody>
               {dynamicCards.map(card => {
                 const isEditing = editingCardId === card.id;
-                const isHighlighted = highlightedCardId === card.id;
+                const isHighlighted = targetCardId === card.id;
                 return (
                 <tr
                   key={card.id}

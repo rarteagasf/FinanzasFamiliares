@@ -37,20 +37,6 @@ export const isCardMatching = (concept, cardId, card) => {
   return false;
 };
 
-const isEntityMatch = (expenseEntity, targetEntity) => {
-  if (!targetEntity || targetEntity === 'ALL') return true;
-  if (!expenseEntity) return false;
-  return expenseEntity.trim().toLowerCase() === targetEntity.trim().toLowerCase();
-};
-
-const getBalanceAccountsForEntity = (entityName) => {
-  if (!entityName || entityName === 'ALL') return ['caixabank', 'hucha', 'ing_nomina', 'ing_naranja'];
-  const norm = entityName.trim().toUpperCase();
-  if (norm.includes('ING')) return ['ing_nomina', 'ing_naranja'];
-  if (norm.includes('CAIXA')) return ['caixabank'];
-  return ['caixabank', 'hucha', 'ing_nomina', 'ing_naranja'];
-};
-
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const familyToken = import.meta.env.VITE_FAMILY_TOKEN;
@@ -94,7 +80,7 @@ const saveStoreToCache = (state) => {
       state.prevPendingExpenses.forEach(p => {
         const idx = updatedExpenses.findIndex(e => e.id === p.id);
         if (idx !== -1) {
-          const { isFromPreviousMonth, originalMonthName, ...cleanP } = p;
+          const { isFromPreviousMonth: _isFromPreviousMonth, originalMonthName: _originalMonthName, ...cleanP } = p;
           updatedExpenses[idx] = cleanP;
         }
       });
@@ -105,11 +91,11 @@ const saveStoreToCache = (state) => {
     }
     const newCache = {
       ...current,
-      months: state.months?.length ? state.months : current.months,
-      entities: state.entities?.length ? state.entities : current.entities,
-      loans: state.loans?.length ? state.loans : current.loans,
-      cards: state.cards?.length ? state.cards : current.cards,
-      reminders: state.reminders?.length ? state.reminders : current.reminders,
+      months: Array.isArray(state.months) ? state.months : (current.months || []),
+      entities: Array.isArray(state.entities) ? state.entities : (current.entities || []),
+      loans: Array.isArray(state.loans) ? state.loans : (current.loans || []),
+      cards: Array.isArray(state.cards) ? state.cards : (current.cards || []),
+      reminders: Array.isArray(state.reminders) ? state.reminders : (current.reminders || []),
       expenses: updatedExpenses,
       balances: updatedBalances
     };
@@ -196,13 +182,23 @@ export const useStore = create((set, get) => ({
   closeCalculator: () => set({ isCalculatorOpen: false }),
   setActiveInputInfo: (info) => set({ activeInputInfo: info }),
 
-  // Load Initial Data
+  // Load Initial Data (Optimizada con Promise.all y persistencia local sin exportAllData repetitivo)
   fetchInitialData: async () => {
     set({ loading: true });
     try {
-      // Fetch months & entities
-      const { data: monthsData, error: monthsError } = await supabase.from('months').select('*').order('created_at', { ascending: false });
-      const { data: entitiesData, error: entitiesError } = await supabase.from('entities').select('*');
+      const [
+        { data: monthsData, error: monthsError },
+        { data: entitiesData },
+        { data: loansData },
+        { data: cardsData },
+        { data: remindersData }
+      ] = await Promise.all([
+        supabase.from('months').select('*').order('created_at', { ascending: false }),
+        supabase.from('entities').select('*'),
+        supabase.from('loans').select('*'),
+        supabase.from('cards').select('*'),
+        supabase.from('reminders').select('*').order('created_at', { ascending: false })
+      ]);
       
       if (monthsError || !monthsData || monthsData.length === 0) {
         console.warn('Supabase no devolvió meses (posible fallo de conexión o 401). Manteniendo datos locales.');
@@ -211,11 +207,6 @@ export const useStore = create((set, get) => ({
       }
 
       const activeMonth = monthsData?.find(m => m.status === 'open') || monthsData?.[0];
-      
-      // Fetch global data
-      const { data: loansData } = await supabase.from('loans').select('*');
-      const { data: cardsData } = await supabase.from('cards').select('*');
-      const { data: remindersData } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
 
       set({ 
         months: monthsData || [], 
@@ -231,15 +222,8 @@ export const useStore = create((set, get) => ({
         await get().fetchMonthData(activeMonth.id);
       }
 
-      // Update local storage cache in the background
-      try {
-        const fullExport = await get().exportAllData();
-        if (fullExport.months?.length) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(fullExport));
-        }
-      } catch (cacheErr) {
-        console.warn('Error al guardar en caché local:', cacheErr);
-      }
+      // Sincronizar caché local inmediatamente en memoria
+      saveStoreToCache(get());
     } catch (err) {
       console.error('Error fetching initial data:', err);
       set({ isOffline: true });
@@ -248,13 +232,27 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  // Fetch Data for specific month
+  // Fetch Data for specific month (Optimizada con Promise.all)
   fetchMonthData: async (monthId) => {
     set({ loading: true, selectedMonthId: monthId });
     
     try {
-      const { data: expensesData, error: expError } = await supabase.from('expenses').select('*').eq('month_id', monthId);
-      const { data: balancesData, error: balError } = await supabase.from('balances').select('*').eq('month_id', monthId).single();
+      const { months } = get();
+      const sorted = [...months].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const currentIndex = sorted.findIndex(m => m.id === monthId);
+      const prevMonth = currentIndex > 0 ? sorted[currentIndex - 1] : null;
+
+      const [
+        { data: expensesData, error: expError },
+        { data: balancesData },
+        prevDataRes
+      ] = await Promise.all([
+        supabase.from('expenses').select('*').eq('month_id', monthId),
+        supabase.from('balances').select('*').eq('month_id', monthId).maybeSingle(),
+        prevMonth
+          ? supabase.from('expenses').select('*').eq('month_id', prevMonth.id).eq('estado', 'X')
+          : Promise.resolve({ data: [] })
+      ]);
       
       if (expError || !expensesData) {
         console.warn('Supabase no devolvió gastos para el mes', monthId, '(error o sin conexión). Usando datos en caché.');
@@ -262,11 +260,8 @@ export const useStore = create((set, get) => ({
         const cachedExp = cache.expenses?.filter(e => e.month_id === monthId) || [];
         const cachedBal = cache.balances?.find(b => b.month_id === monthId) || { caixabank: 0, hucha: 0, ing_nomina: 0, ing_naranja: 0 };
         
-        const sorted = [...(cache.months || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        const currentIndex = sorted.findIndex(m => m.id === monthId);
         let prevExpensesData = [];
-        if (currentIndex > 0) {
-          const prevMonth = sorted[currentIndex - 1];
+        if (prevMonth) {
           prevExpensesData = (cache.expenses || [])
             .filter(e => e.month_id === prevMonth.id && e.estado === 'X')
             .map(e => ({ ...e, isFromPreviousMonth: true, originalMonthName: prevMonth.name }));
@@ -282,30 +277,21 @@ export const useStore = create((set, get) => ({
         return;
       }
 
-      // Fetch previous month's unpaid expenses
-      const { months } = get();
-      const sorted = [...months].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      const currentIndex = sorted.findIndex(m => m.id === monthId);
-      let prevExpensesData = [];
-      if (currentIndex > 0) {
-        const prevMonth = sorted[currentIndex - 1];
-        const { data: prevData } = await supabase
-          .from('expenses')
-          .select('*')
-          .eq('month_id', prevMonth.id)
-          .eq('estado', 'X'); // Only unpaid
-        if (prevData) {
-          prevExpensesData = prevData.map(e => ({ ...e, isFromPreviousMonth: true, originalMonthName: prevMonth.name }));
-        }
-      }
+      const prevExpensesData = (prevDataRes?.data || []).map(e => ({
+        ...e,
+        isFromPreviousMonth: true,
+        originalMonthName: prevMonth?.name
+      }));
       
-      set({ 
+      const nextState = { 
         expenses: expensesData || [],
         prevPendingExpenses: prevExpensesData,
         balances: balancesData || { caixabank: 0, hucha: 0, ing_nomina: 0, ing_naranja: 0 },
         loading: false,
         isOffline: false
-      });
+      };
+      set(nextState);
+      saveStoreToCache({ ...get(), ...nextState });
     } catch (err) {
       console.error('Error in fetchMonthData:', err);
       set({ loading: false, isOffline: true });
@@ -395,10 +381,16 @@ export const useStore = create((set, get) => ({
       return e;
     });
     set({ expenses: newExpenses });
+    saveStoreToCache({ ...get(), expenses: newExpenses });
 
     const updates = newExpenses.filter(e => e.estado !== prevExpenses.find(p => p.id === e.id).estado);
-    for (const update of updates) {
-      await supabase.from('expenses').update({ estado: update.estado }).eq('id', update.id);
+    const idsToReset = updates.map(u => u.id);
+    if (idsToReset.length > 0) {
+      try {
+        await supabase.from('expenses').update({ estado: 'X' }).in('id', idsToReset);
+      } catch (err) {
+        console.warn('Error al resetear estados en Supabase (guardado localmente):', err);
+      }
     }
   },
 
@@ -406,35 +398,57 @@ export const useStore = create((set, get) => ({
   addEntity: async (entity) => {
     const { data, error } = await supabase.from('entities').insert(entity).select().single();
     if (!error && data) {
-      set(state => ({ entities: [...state.entities, data] }));
+      set(state => {
+        const next = [...state.entities, data];
+        saveStoreToCache({ ...state, entities: next });
+        return { entities: next };
+      });
     }
     return { data, error };
   },
   
   updateEntity: async (id, updates) => {
     const prev = get().entities;
-    set(state => ({ entities: state.entities.map(e => e.id === id ? { ...e, ...updates } : e) }));
+    set(state => {
+      const next = state.entities.map(e => e.id === id ? { ...e, ...updates } : e);
+      saveStoreToCache({ ...state, entities: next });
+      return { entities: next };
+    });
     const { id: _, created_at: __, ...cleanUpdates } = updates;
     const { error } = await supabase.from('entities').update(cleanUpdates).eq('id', id);
-    if (error) set({ entities: prev });
+    if (error) {
+      set({ entities: prev });
+      saveStoreToCache({ ...get(), entities: prev });
+    }
     return { error };
   },
 
   deleteEntity: async (id) => {
     const prev = get().entities;
-    set(state => ({ entities: state.entities.filter(e => e.id !== id) }));
+    set(state => {
+      const next = state.entities.filter(e => e.id !== id);
+      saveStoreToCache({ ...state, entities: next });
+      return { entities: next };
+    });
     const { error } = await supabase.from('entities').delete().eq('id', id);
-    if (error) set({ entities: prev });
+    if (error) {
+      set({ entities: prev });
+      saveStoreToCache({ ...get(), entities: prev });
+    }
     return { error };
   },
 
   // CRUD CARDS
   addCard: async (card) => {
-    const { isPaidThisMonth, paidAmount, ...cleanCard } = card;
+    const { isPaidThisMonth: _isPaidThisMonth, paidAmount: _paidAmount, ...cleanCard } = card;
     const adjustedCard = { ...cleanCard, cuota: Math.min(cleanCard.cuota, cleanCard.pendiente) };
     const { data, error } = await supabase.from('cards').insert(adjustedCard).select().single();
     if (!error && data) {
-      set(state => ({ cards: [...state.cards, data] }));
+      set(state => {
+        const next = [...state.cards, data];
+        saveStoreToCache({ ...state, cards: next });
+        return { cards: next };
+      });
     }
     return { data, error };
   },
@@ -446,30 +460,48 @@ export const useStore = create((set, get) => ({
     const nextCuota = updates.cuota !== undefined ? updates.cuota : (card ? card.cuota : 0);
     const adjustedCuota = Math.min(nextCuota, nextPendiente);
     
-    const { isPaidThisMonth, paidAmount, ...cleanUpdatesObj } = { ...updates, cuota: adjustedCuota };
+    const { isPaidThisMonth: _isPaidThisMonth, paidAmount: _paidAmount, ...cleanUpdatesObj } = { ...updates, cuota: adjustedCuota };
 
-    set(state => ({ cards: state.cards.map(c => c.id === id ? { ...c, ...cleanUpdatesObj } : c) }));
+    set(state => {
+      const next = state.cards.map(c => c.id === id ? { ...c, ...cleanUpdatesObj } : c);
+      saveStoreToCache({ ...state, cards: next });
+      return { cards: next };
+    });
     const { id: _, created_at: __, ...cleanUpdates } = cleanUpdatesObj;
     const { error } = await supabase.from('cards').update(cleanUpdates).eq('id', id);
-    if (error) set({ cards: prev });
+    if (error) {
+      set({ cards: prev });
+      saveStoreToCache({ ...get(), cards: prev });
+    }
     return { error };
   },
 
   deleteCard: async (id) => {
     const prev = get().cards;
-    set(state => ({ cards: state.cards.filter(c => c.id !== id) }));
+    set(state => {
+      const next = state.cards.filter(c => c.id !== id);
+      saveStoreToCache({ ...state, cards: next });
+      return { cards: next };
+    });
     const { error } = await supabase.from('cards').delete().eq('id', id);
-    if (error) set({ cards: prev });
+    if (error) {
+      set({ cards: prev });
+      saveStoreToCache({ ...get(), cards: prev });
+    }
     return { error };
   },
 
   // CRUD LOANS
   addLoan: async (loan) => {
-    const { isPaidThisMonth, ...cleanLoan } = loan;
+    const { isPaidThisMonth: _isPaidThisMonth, ...cleanLoan } = loan;
     const adjustedLoan = { ...cleanLoan, pendiente: cleanLoan.faltan * cleanLoan.cuota };
     const { data, error } = await supabase.from('loans').insert(adjustedLoan).select().single();
     if (!error && data) {
-      set(state => ({ loans: [...state.loans, data] }));
+      set(state => {
+        const next = [...state.loans, data];
+        saveStoreToCache({ ...state, loans: next });
+        return { loans: next };
+      });
     }
     return { data, error };
   },
@@ -482,20 +514,34 @@ export const useStore = create((set, get) => ({
     const nextPendiente = nextFaltan * nextCuota;
     const cleanUpdatesObj = { ...updates, faltan: nextFaltan, cuota: nextCuota, pendiente: nextPendiente };
 
-    const { isPaidThisMonth, ...cleanUpdatesObjCleaned } = cleanUpdatesObj;
+    const { isPaidThisMonth: _isPaidThisMonth, ...cleanUpdatesObjCleaned } = cleanUpdatesObj;
 
-    set(state => ({ loans: state.loans.map(l => l.id === id ? { ...l, ...cleanUpdatesObjCleaned } : l) }));
+    set(state => {
+      const next = state.loans.map(l => l.id === id ? { ...l, ...cleanUpdatesObjCleaned } : l);
+      saveStoreToCache({ ...state, loans: next });
+      return { loans: next };
+    });
     const { id: _, created_at: __, ...cleanUpdates } = cleanUpdatesObjCleaned;
     const { error } = await supabase.from('loans').update(cleanUpdates).eq('id', id);
-    if (error) set({ loans: prev });
+    if (error) {
+      set({ loans: prev });
+      saveStoreToCache({ ...get(), loans: prev });
+    }
     return { error };
   },
 
   deleteLoan: async (id) => {
     const prev = get().loans;
-    set(state => ({ loans: state.loans.filter(l => l.id !== id) }));
+    set(state => {
+      const next = state.loans.filter(l => l.id !== id);
+      saveStoreToCache({ ...state, loans: next });
+      return { loans: next };
+    });
     const { error } = await supabase.from('loans').delete().eq('id', id);
-    if (error) set({ loans: prev });
+    if (error) {
+      set({ loans: prev });
+      saveStoreToCache({ ...get(), loans: prev });
+    }
     return { error };
   },
 
@@ -503,33 +549,43 @@ export const useStore = create((set, get) => ({
   addReminder: async (reminder) => {
     const { data, error } = await supabase.from('reminders').insert(reminder).select().single();
     if (!error && data) {
-      set(state => ({ reminders: [data, ...state.reminders] }));
+      set(state => {
+        const next = [data, ...state.reminders];
+        saveStoreToCache({ ...state, reminders: next });
+        return { reminders: next };
+      });
     }
     return { data, error };
   },
 
   updateReminder: async (id, updates) => {
     const prevReminders = get().reminders;
-    set(state => ({
-      reminders: state.reminders.map(r => r.id === id ? { ...r, ...updates } : r)
-    }));
+    set(state => {
+      const next = state.reminders.map(r => r.id === id ? { ...r, ...updates } : r);
+      saveStoreToCache({ ...state, reminders: next });
+      return { reminders: next };
+    });
 
     const { id: _, created_at: __, ...cleanUpdates } = updates;
     const { error } = await supabase.from('reminders').update(cleanUpdates).eq('id', id);
     if (error) {
       set({ reminders: prevReminders });
+      saveStoreToCache({ ...get(), reminders: prevReminders });
     }
     return { error };
   },
 
   deleteReminder: async (id) => {
     const prevReminders = get().reminders;
-    set(state => ({
-      reminders: state.reminders.filter(r => r.id !== id)
-    }));
+    set(state => {
+      const next = state.reminders.filter(r => r.id !== id);
+      saveStoreToCache({ ...state, reminders: next });
+      return { reminders: next };
+    });
     const { error } = await supabase.from('reminders').delete().eq('id', id);
     if (error) {
       set({ reminders: prevReminders });
+      saveStoreToCache({ ...get(), reminders: prevReminders });
     }
     return { error };
   },
@@ -916,13 +972,23 @@ export const useStore = create((set, get) => ({
   },
 
   exportAllData: async () => {
-    const { data: months } = await supabase.from('months').select('*');
-    const { data: entities } = await supabase.from('entities').select('*');
-    const { data: expenses } = await supabase.from('expenses').select('*');
-    const { data: balances } = await supabase.from('balances').select('*');
-    const { data: loans } = await supabase.from('loans').select('*');
-    const { data: cards } = await supabase.from('cards').select('*');
-    const { data: reminders } = await supabase.from('reminders').select('*');
+    const [
+      { data: months },
+      { data: entities },
+      { data: expenses },
+      { data: balances },
+      { data: loans },
+      { data: cards },
+      { data: reminders }
+    ] = await Promise.all([
+      supabase.from('months').select('*'),
+      supabase.from('entities').select('*'),
+      supabase.from('expenses').select('*'),
+      supabase.from('balances').select('*'),
+      supabase.from('loans').select('*'),
+      supabase.from('cards').select('*'),
+      supabase.from('reminders').select('*')
+    ]);
     return { months, entities, expenses, balances, loans, cards, reminders };
   },
 

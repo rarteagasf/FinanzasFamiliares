@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Plus, Trash2, Pencil, Calendar, CheckSquare, Square, AlertCircle, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Pencil, Calendar, CheckSquare, Square, AlertCircle, Clock, CheckCircle, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from './ui/Modal';
+import ExpenseFormModal from './ui/ExpenseFormModal';
+import { parseReminderForExpense, formatCurrency } from '../utils';
 
 export default function RemindersView() {
-  const { reminders, addReminder, updateReminder, deleteReminder } = useStore();
+  const { reminders, addReminder, updateReminder, deleteReminder, addExpense, entities, loans, cards } = useStore();
   
   // Form states
   const [texto, setTexto] = useState('');
@@ -15,6 +17,17 @@ export default function RemindersView() {
   // Edit state
   const [editingReminder, setEditingReminder] = useState(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Transfer to Expense state
+  const [transferReminder, setTransferReminder] = useState(null);
+  const [transferInitialData, setTransferInitialData] = useState(null);
+  const [isTransferExpenseModalOpen, setIsTransferExpenseModalOpen] = useState(false);
+  const [completionPrompt, setCompletionPrompt] = useState({
+    isOpen: false,
+    reminder: null,
+    expenseConcept: '',
+    expenseAmount: 0
+  });
 
   // Confirmation State
   const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
@@ -101,12 +114,58 @@ export default function RemindersView() {
     });
   };
 
-  // Filter reminders
-  const filteredReminders = reminders.filter(r => {
-    if (filter === 'pending') return !r.completado;
-    if (filter === 'completed') return r.completado;
-    return true;
-  });
+  // Transfer to Expense handlers
+  const handleStartTransfer = (reminder) => {
+    const parsed = parseReminderForExpense(reminder, entities, loans, cards);
+    setTransferReminder(reminder);
+    setTransferInitialData(parsed);
+    setIsTransferExpenseModalOpen(true);
+  };
+
+  const handleSaveTransferredExpense = async (expenseData) => {
+    const res = await addExpense(expenseData);
+    setIsTransferExpenseModalOpen(false);
+
+    if (res?.savedLocally) {
+      toast.info('Gasto registrado en el dispositivo');
+    } else if (!res?.error) {
+      toast.success('Gasto registrado correctamente');
+    } else {
+      toast.error('Error al registrar el gasto: ' + (res.error?.message || 'Error en el servidor'));
+      return;
+    }
+
+    if (transferReminder) {
+      setCompletionPrompt({
+        isOpen: true,
+        reminder: transferReminder,
+        expenseConcept: expenseData.concepto,
+        expenseAmount: expenseData.importe
+      });
+    }
+  };
+
+  const handleConfirmCompleteReminder = async () => {
+    if (completionPrompt.reminder) {
+      const { error } = await updateReminder(completionPrompt.reminder.id, { completado: true });
+      if (!error) {
+        toast.success('Recordatorio marcado como completado');
+      } else {
+        toast.error('Error al actualizar recordatorio: ' + error.message);
+      }
+    }
+    setCompletionPrompt({ isOpen: false, reminder: null, expenseConcept: '', expenseAmount: 0 });
+    setTransferReminder(null);
+  };
+
+  // Filter reminders (memorizado)
+  const filteredReminders = useMemo(() => {
+    return reminders.filter(r => {
+      if (filter === 'pending') return !r.completado;
+      if (filter === 'completed') return r.completado;
+      return true;
+    });
+  }, [reminders, filter]);
 
   const getDueDateStatus = (reminder) => {
     if (reminder.completado || !reminder.fecha_limite) return 'none';
@@ -205,6 +264,8 @@ export default function RemindersView() {
                 const status = getDueDateStatus(reminder);
                 const isOverdue = status === 'overdue';
                 const isDueToday = status === 'today';
+                const parsedForExpense = parseReminderForExpense(reminder, entities, loans, cards);
+                const canTransfer = parsedForExpense.isFeasible;
 
                 let borderStyle = '1px solid var(--border)';
                 let backgroundStyle = 'var(--bg-main)';
@@ -306,8 +367,41 @@ export default function RemindersView() {
                       )}
                     </div>
 
-                    {/* Actions: Edit & Delete */}
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    {/* Actions: Transfer to Expense, Edit & Delete */}
+                    <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                      {canTransfer && (
+                        <button
+                          className="btn"
+                          onClick={() => handleStartTransfer(reminder)}
+                          style={{
+                            padding: '0.35rem 0.55rem',
+                            background: 'rgba(79, 99, 103, 0.12)',
+                            border: '1px solid rgba(79, 99, 103, 0.25)',
+                            cursor: 'pointer',
+                            color: 'var(--primary-text)',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'var(--primary)';
+                            e.currentTarget.style.color = '#ffffff';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'rgba(79, 99, 103, 0.12)';
+                            e.currentTarget.style.color = 'var(--primary-text)';
+                          }}
+                          title="Trasladar este recordatorio a un gasto"
+                        >
+                          <Receipt size={14} />
+                          <span className="hide-mobile">Pasar a Gasto</span>
+                        </button>
+                      )}
+
                       <button
                         className="btn"
                         onClick={() => handleEditClick(reminder)}
@@ -426,6 +520,65 @@ export default function RemindersView() {
           }}>
             Confirmar
           </button>
+        </div>
+      </Modal>
+
+      {/* Modal Formulario de Gasto (Unificado) */}
+      <ExpenseFormModal
+        isOpen={isTransferExpenseModalOpen}
+        onClose={() => setIsTransferExpenseModalOpen(false)}
+        onSubmit={handleSaveTransferredExpense}
+        initialData={transferInitialData}
+        title="Trasladar Recordatorio a Gasto"
+        submitLabel="Registrar Gasto"
+      />
+
+      {/* Modal Preguntar si Marcar Completado */}
+      <Modal
+        isOpen={completionPrompt.isOpen}
+        onClose={() => setCompletionPrompt({ isOpen: false, reminder: null, expenseConcept: '', expenseAmount: 0 })}
+        title="¿Marcar recordatorio como completado?"
+      >
+        <div>
+          <p style={{ marginBottom: '1rem', color: 'var(--text-main)', fontSize: '0.925rem', lineHeight: 1.5 }}>
+            El gasto se ha registrado correctamente en tu lista de gastos:
+          </p>
+          <div style={{
+            background: 'var(--bg-main)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.25rem',
+            fontSize: '0.875rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Concepto:</span>
+              <strong style={{ color: 'var(--text-main)' }}>{completionPrompt.expenseConcept}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Importe:</span>
+              <strong style={{ color: 'var(--danger)' }}>{formatCurrency(completionPrompt.expenseAmount)}</strong>
+            </div>
+          </div>
+          <p style={{ marginBottom: '1.25rem', color: 'var(--text-main)', fontSize: '0.9rem' }}>
+            ¿Deseas marcar como <strong>completado</strong> el recordatorio <em>"{completionPrompt.reminder?.texto}"</em>?
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setCompletionPrompt({ isOpen: false, reminder: null, expenseConcept: '', expenseAmount: 0 })}
+            >
+              Mantener pendiente
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleConfirmCompleteReminder}
+            >
+              Sí, marcar completado
+            </button>
+          </div>
         </div>
       </Modal>
 
